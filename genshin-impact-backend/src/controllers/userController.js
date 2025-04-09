@@ -61,18 +61,6 @@ const addToFavorites = async (req, res) => {
       },
     });
 
-    // Log activity
-    await prisma.userActivity.create({
-      data: {
-        userId: req.user.id,
-        activityType: "ADD_FAVORITE",
-        relatedId:
-          favoriteType === "CHARACTER"
-            ? parseInt(characterId)
-            : parseInt(weaponId),
-      },
-    });
-
     res.status(201).json({
       message: "Added to favorites",
       favorite,
@@ -106,18 +94,6 @@ const removeFromFavorites = async (req, res) => {
       where: { id: parseInt(id) },
     });
 
-    // Log activity
-    await prisma.userActivity.create({
-      data: {
-        userId: req.user.id,
-        activityType: "REMOVE_FAVORITE",
-        relatedId:
-          favorite.favoriteType === "CHARACTER"
-            ? favorite.characterId
-            : favorite.weaponId,
-      },
-    });
-
     res.status(200).json({
       message: "Removed from favorites",
     });
@@ -127,31 +103,66 @@ const removeFromFavorites = async (req, res) => {
   }
 };
 
-// Get user activities (for admin)
-const getUserActivities = async (req, res) => {
+// Admin: Get all users (admin only)
+const getAllUsers = async (req, res) => {
   try {
-    const activities = await prisma.userActivity.findMany({
-      where: {
-        userId: req.params.userId ? parseInt(req.params.userId) : undefined,
-      },
-      include: {
-        user: {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        isAdmin: true,
+        lastLogin: true,
+        createdAt: true,
+        _count: {
           select: {
-            id: true,
-            username: true,
-            email: true,
+            favorites: true,
           },
         },
       },
-      orderBy: {
-        timestamp: "desc",
+    });
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Get all users error:", error);
+    res.status(500).json({ message: "Error fetching users" });
+  }
+};
+
+// Admin: Toggle user admin status (admin only)
+const toggleAdminStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(userId) },
+      select: { isAdmin: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: parseInt(userId) },
+      data: { isAdmin: !user.isAdmin },
+      select: {
+        id: true,
+        username: true,
+        isAdmin: true,
       },
     });
 
-    res.status(200).json(activities);
+    res.status(200).json({
+      message: `User ${
+        updatedUser.isAdmin ? "promoted to admin" : "demoted from admin"
+      }`,
+      user: updatedUser,
+    });
   } catch (error) {
-    console.error("Get user activities error:", error);
-    res.status(500).json({ message: "Error fetching user activities" });
+    console.error("Toggle admin error:", error);
+    res.status(500).json({ message: "Error updating user admin status" });
   }
 };
 
@@ -159,5 +170,6 @@ module.exports = {
   getUserFavorites,
   addToFavorites,
   removeFromFavorites,
-  getUserActivities,
+  getAllUsers,
+  toggleAdminStatus,
 };

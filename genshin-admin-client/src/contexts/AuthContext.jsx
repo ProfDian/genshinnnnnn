@@ -1,13 +1,5 @@
 // src/contexts/AuthContext.jsx
 import { createContext, useContext, useEffect, useState } from "react";
-import {
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  updateProfile,
-} from "firebase/auth";
-import { auth } from "../config/firebase";
 import axios from "axios";
 
 const AuthContext = createContext();
@@ -25,15 +17,17 @@ export function AuthProvider({ children }) {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
   // Fungsi untuk login
-  async function login(email, password) {
+  async function login(username, password) {
     try {
       setError("");
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const token = await userCredential.user.getIdToken();
+
+      // Login dengan API JWT baru
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        username,
+        password,
+      });
+
+      const { token, user } = response.data;
 
       // Simpan token ke localStorage
       localStorage.setItem("authToken", token);
@@ -41,17 +35,13 @@ export function AuthProvider({ children }) {
       // Set axios default header untuk semua request
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      // Ambil informasi user dari backend
-      try {
-        const response = await axios.get(`${API_URL}/auth/user`);
-        setUserInfo(response.data.user);
-      } catch (backendError) {
-        console.error("Error getting user info from backend:", backendError);
-      }
+      // Set user info
+      setUserInfo(user);
+      setCurrentUser(user);
 
-      return userCredential.user;
+      return user;
     } catch (error) {
-      setError(error.message);
+      setError(error.response?.data?.message || "Login failed");
       throw error;
     }
   }
@@ -59,111 +49,106 @@ export function AuthProvider({ children }) {
   // Fungsi untuk logout
   async function logout() {
     try {
-      await signOut(auth);
       localStorage.removeItem("authToken");
       delete axios.defaults.headers.common["Authorization"];
       setUserInfo(null);
+      setCurrentUser(null);
     } catch (error) {
       setError(error.message);
       throw error;
     }
   }
 
-  // Fungsi untuk register (jika diperlukan)
-  async function register(email, password, username) {
+  // Fungsi untuk register
+  async function register(userData) {
     try {
       setError("");
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      await updateProfile(userCredential.user, { displayName: username });
 
-      // Daftarkan user ke backend
-      const token = await userCredential.user.getIdToken();
+      const formData = new FormData();
 
+      // Tambahkan data ke FormData
+      Object.keys(userData).forEach((key) => {
+        if (key === "profileImage" && userData[key]) {
+          formData.append(key, userData[key]);
+        } else if (key !== "profileImage") {
+          formData.append(key, userData[key]);
+        }
+      });
+
+      const response = await axios.post(`${API_URL}/auth/register`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const { token, user } = response.data;
+
+      // Simpan token ke localStorage
       localStorage.setItem("authToken", token);
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-      await axios.post(`${API_URL}/auth/register`, {
-        firebaseUid: userCredential.user.uid,
-        email,
-        username,
-      });
+      // Set user info
+      setUserInfo(user);
+      setCurrentUser(user);
 
-      return userCredential.user;
+      return user;
     } catch (error) {
-      setError(error.message);
+      setError(error.response?.data?.message || "Registration failed");
       throw error;
     }
   }
 
-  // Fungsi untuk refresh token
-  async function refreshToken() {
-    if (currentUser) {
-      try {
-        const token = await currentUser.getIdToken(true);
-        localStorage.setItem("authToken", token);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-        return token;
-      } catch (error) {
-        console.error("Error refreshing token:", error);
-        throw error;
-      }
+  // Fungsi untuk mendapatkan data user saat ini
+  async function getCurrentUser() {
+    try {
+      const response = await axios.get(`${API_URL}/auth/me`);
+      setUserInfo(response.data.user);
+      setCurrentUser(response.data.user);
+      return response.data.user;
+    } catch (error) {
+      console.error("Error getting current user:", error);
+      return null;
     }
-    return null;
   }
 
-  // Effect untuk memantau status autentikasi
+  // Effect untuk verifikasi token saat startup
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
+    const checkAuthStatus = async () => {
+      const token = localStorage.getItem("authToken");
 
-      if (user) {
-        // Dapatkan token dan set ke axios header
-        const token = await user.getIdToken();
-        localStorage.setItem("authToken", token);
+      if (token) {
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-        // Dapatkan informasi user dari backend
         try {
-          const response = await axios.get(`${API_URL}/auth/user`);
-          setUserInfo(response.data.user);
+          // Verifikasi token dengan mendapatkan data user
+          await getCurrentUser();
         } catch (error) {
-          console.error("Error getting user info:", error);
+          console.error("Auth token invalid:", error);
+          localStorage.removeItem("authToken");
+          delete axios.defaults.headers.common["Authorization"];
         }
-      } else {
-        localStorage.removeItem("authToken");
-        delete axios.defaults.headers.common["Authorization"];
-        setUserInfo(null);
       }
 
       setLoading(false);
-    });
+    };
 
-    // Setup axios interceptor untuk refresh token jika 401
+    checkAuthStatus();
+  }, []);
+
+  // Setup axios interceptor untuk handling 401 error
+  useEffect(() => {
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
-        const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-          try {
-            await refreshToken();
-            return axios(originalRequest);
-          } catch (refreshError) {
-            // Force logout pada error refresh token
-            await logout();
-            return Promise.reject(refreshError);
-          }
+        if (error.response?.status === 401) {
+          // Token expired atau invalid, logout user
+          await logout();
         }
         return Promise.reject(error);
       }
     );
 
     return () => {
-      unsubscribe();
       axios.interceptors.response.eject(interceptor);
     };
   }, []);
@@ -174,9 +159,10 @@ export function AuthProvider({ children }) {
     login,
     logout,
     register,
-    refreshToken,
+    getCurrentUser,
     error,
     loading,
+    isAdmin: userInfo?.isAdmin || false,
   };
 
   return (

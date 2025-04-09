@@ -9,7 +9,7 @@ const characterRoutes = require("./routes/characterRoutes");
 const weaponRoutes = require("./routes/weaponRoutes");
 const regionRoutes = require("./routes/regionRoutes");
 const userRoutes = require("./routes/userRoutes");
-const characterStatRoutes = require("./routes/characterStatRoutes"); // Tambahkan ini
+const characterStatRoutes = require("./routes/characterStatRoutes");
 
 // Create Express app
 const app = express();
@@ -27,12 +27,13 @@ app.use("/api/characters", characterRoutes);
 app.use("/api/weapons", weaponRoutes);
 app.use("/api/regions", regionRoutes);
 app.use("/api/user", userRoutes);
-app.use("/api/stats", characterStatRoutes); // Tambahkan ini
+app.use("/api/stats", characterStatRoutes);
 
 // Root route
 app.get("/", (req, res) => {
   res.json({
     message: "Welcome to Genshin Impact API",
+    version: "1.0.0",
     documentation: "API documentation available at /api-docs",
   });
 });

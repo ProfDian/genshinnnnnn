@@ -13,17 +13,12 @@ router.delete(
 );
 
 // Admin routes
-router.get(
-  "/activities",
+router.get("/all", verifyToken, isAdmin, userController.getAllUsers);
+router.put(
+  "/:userId/toggle-admin",
   verifyToken,
   isAdmin,
-  userController.getUserActivities
-);
-router.get(
-  "/activities/:userId",
-  verifyToken,
-  isAdmin,
-  userController.getUserActivities
+  userController.toggleAdminStatus
 );
 
 module.exports = router;

@@ -4,12 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { characterAPI } from "../services/api";
 import Swal from "sweetalert2";
-import {
-  FaUser,
-  FaWeightHanging,
-  FaMapMarkedAlt,
-  FaTimes,
-} from "react-icons/fa";
+import { FaUser } from "react-icons/fa";
 
 export default function Dashboard() {
   const [characters, setCharacters] = useState([]);

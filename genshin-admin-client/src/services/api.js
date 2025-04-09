@@ -27,19 +27,36 @@ api.interceptors.request.use(
 
 // Authentication API
 export const authAPI = {
-  login: async (email, password) => {
-    // Login dilakukan melalui Firebase, tidak melalui API ini
-    // Fungsi ini dibiarkan untuk kemungkinan integrasi di masa depan
-    return { message: "Login dilakukan melalui Firebase" };
+  login: async (username, password) => {
+    const response = await api.post("/auth/login", { username, password });
+    return response.data;
   },
 
-  register: async (data) => {
-    const response = await api.post("/auth/register", data);
+  register: async (formData) => {
+    const response = await api.post("/auth/register", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
     return response.data;
   },
 
   getCurrentUser: async () => {
-    const response = await api.get("/auth/user");
+    const response = await api.get("/auth/me");
+    return response.data;
+  },
+
+  updateProfile: async (formData) => {
+    const response = await api.put("/auth/profile", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  },
+
+  changePassword: async (data) => {
+    const response = await api.put("/auth/change-password", data);
     return response.data;
   },
 };
@@ -137,6 +154,24 @@ export const characterStatsAPI = {
 
   previewCharacterStats: async (data) => {
     const response = await api.post("/stats/preview", data);
+    return response.data;
+  },
+};
+
+// User Favorites API
+export const userAPI = {
+  getFavorites: async () => {
+    const response = await api.get("/user/favorites");
+    return response.data;
+  },
+
+  addToFavorites: async (data) => {
+    const response = await api.post("/user/favorites", data);
+    return response.data;
+  },
+
+  removeFromFavorites: async (id) => {
+    const response = await api.delete(`/user/favorites/${id}`);
     return response.data;
   },
 };

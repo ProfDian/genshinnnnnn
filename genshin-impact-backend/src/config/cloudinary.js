@@ -9,6 +9,16 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Setup storage for profile images
+const profileStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "genshin/profiles",
+    allowed_formats: ["jpg", "png", "webp"],
+    transformation: [{ width: 400, height: 400, crop: "fill" }],
+  },
+});
+
 // Setup storage for character images
 const characterStorage = new CloudinaryStorage({
   cloudinary,
@@ -40,12 +50,14 @@ const regionStorage = new CloudinaryStorage({
 });
 
 // Create middleware for each upload type
+const uploadProfileImage = multer({ storage: profileStorage });
 const uploadCharacter = multer({ storage: characterStorage });
 const uploadWeapon = multer({ storage: weaponStorage });
 const uploadRegion = multer({ storage: regionStorage });
 
 module.exports = {
   cloudinary,
+  uploadProfileImage,
   uploadCharacter,
   uploadWeapon,
   uploadRegion,

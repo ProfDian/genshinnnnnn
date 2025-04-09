@@ -1,77 +1,62 @@
-const { auth } = require("../config/firebase");
+const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-// Middleware to verify Firebase token
+// Middleware to verify JWT token
 const verifyToken = async (req, res, next) => {
   try {
-    const token = req.headers.authorization?.split("Bearer ")[1];
-
-    if (!token) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized: No token provided" });
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided" });
     }
 
-    // Verify the Firebase token
-    const decodedToken = await auth.verifyIdToken(token);
+    const token = authHeader.split(" ")[1];
 
-    // Get the user from database or create if not exists
-    let user = await prisma.user.findUnique({
-      where: { firebaseUid: decodedToken.uid },
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
     });
 
     if (!user) {
-      // If user doesn't exist in MySQL, create a new record
-      user = await prisma.user.create({
-        data: {
-          firebaseUid: decodedToken.uid,
-          email: decodedToken.email,
-          username: decodedToken.name || decodedToken.email.split("@")[0],
-          lastLogin: new Date(),
-        },
-      });
-    } else {
-      // Update last login time
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLogin: new Date() },
-      });
+      return res.status(401).json({ message: "Invalid token" });
     }
 
-    // Add user to request
-    req.user = user;
-
-    // Log user activity
-    await prisma.userActivity.create({
-      data: {
-        userId: user.id,
-        activityType: "LOGIN",
-      },
-    });
+    // Attach user to request
+    req.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      isAdmin: user.isAdmin,
+    };
 
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
-    return res.status(401).json({ message: "Unauthorized: Invalid token" });
-  }
-};
+    console.error("Token verification error:", error);
 
-// Admin middleware
-const isAdmin = async (req, res, next) => {
-  try {
-    // Check if user exists and is admin
-    if (!req.user || !req.user.isAdmin) {
-      return res
-        .status(403)
-        .json({ message: "Forbidden: Admin access required" });
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Token expired" });
     }
 
-    next();
-  } catch (error) {
-    console.error("Admin middleware error:", error);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(401).json({ message: "Invalid token" });
   }
 };
 
-module.exports = { verifyToken, isAdmin };
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+  if (!req.user || !req.user.isAdmin) {
+    return res
+      .status(403)
+      .json({ message: "Access denied. Admin role required." });
+  }
+
+  next();
+};
+
+module.exports = {
+  verifyToken,
+  isAdmin,
+};
