@@ -1,0 +1,338 @@
+generator client {
+  provider = "prisma-client-js"
+    previewFeatures = ["views"]
+
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Models for Elements
+model Element {
+  id           Int         @id @default(autoincrement())
+  elementName  String      @map("element_name") @db.VarChar(30) @unique  // Tambahkan @unique di sini
+  elementColor String      @map("element_color") @db.VarChar(10)
+  elementIcon  String?     @map("element_icon") @db.VarChar(255)
+  characters   Character[]
+
+  @@map("elements")
+}
+
+// Models for Weapon Types
+model WeaponType {
+  id              Int       @id @default(autoincrement())
+  weaponTypeName  String    @map("weapon_type_name") @db.VarChar(30)
+  weaponTypeIcon  String?   @map("weapon_type_icon") @db.VarChar(255)
+  characters      Character[]
+  weapons         Weapon[]
+
+  @@map("weapon_types")
+}
+
+// Models for Regions
+model Region {
+  id                Int           @id @default(autoincrement())
+  regionName        String        @map("region_name") @db.VarChar(50)
+  overview          String?       @db.Text
+  worldMap          String?       @map("world_map") @db.VarChar(30)
+  archonQuest       String?       @map("archon_quest") @db.VarChar(100)
+  associatedElement String?       @map("associated_element") @db.VarChar(30)
+  archon            String?       @db.VarChar(50)
+  ideal             String?       @db.VarChar(30)
+  mainCity          String?       @map("main_city") @db.VarChar(50)
+  controllingEntity String?       @map("controlling_entity") @db.VarChar(100)
+  celebratedFestivals String?     @map("celebrated_festivals") @db.Text
+  howToAccess       String?       @map("how_to_access") @db.Text
+  regionIcon        String?       @map("region_icon") @db.VarChar(255)
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  characters        Character[]
+  areas             RegionArea[]
+  features          RegionFeature[]
+
+  @@map("regions")
+}
+
+// Models for Region Areas
+model RegionArea {
+  id              Int      @id @default(autoincrement())
+  regionId        Int      @map("region_id")
+  areaName        String   @map("area_name") @db.VarChar(100)
+  areaDescription String?  @map("area_description") @db.Text
+  areaImage       String?  @map("area_image") @db.VarChar(255)
+  region          Region   @relation(fields: [regionId], references: [id])
+
+  @@map("region_areas")
+}
+
+// Models for Region Features
+model RegionFeature {
+  id                 Int      @id @default(autoincrement())
+  regionId           Int      @map("region_id")
+  featureName        String   @map("feature_name") @db.VarChar(100)
+  featureDescription String?  @map("feature_description") @db.Text
+  region             Region   @relation(fields: [regionId], references: [id])
+
+  @@map("region_features")
+}
+
+// Models for Rarities
+model Rarity {
+  id          Int         @id @default(autoincrement())
+  rarityValue Int         @map("rarity_value")
+  rarityColor String      @map("rarity_color") @db.VarChar(10)
+  characters  Character[]
+  weapons     Weapon[]
+
+  @@map("rarities")
+}
+
+// Models for Characters
+model Character {
+  id            Int        @id
+  name          String     @db.VarChar(50)
+  title         String?    @db.VarChar(100)
+  detail        String?    @db.Text
+  constellation String?    @db.VarChar(100)
+  elementId     Int?       @map("element_id")
+  weaponTypeId  Int?       @map("weapon_type_id")
+  regionId      Int?       @map("region_id")
+  rarityId      Int?       @map("rarity_id")
+  icon          String?    @db.VarChar(255)
+  gachaImg      String?    @map("gacha_img") @db.VarChar(255)
+  birthday      String?    @db.VarChar(20)
+  releaseDate   BigInt?    @map("release_date")
+  native        String?    @db.VarChar(100)
+  cvEn          String?    @map("cv_en") @db.VarChar(100)
+  cvChs         String?    @map("cv_chs") @db.VarChar(100)
+  cvJp          String?    @map("cv_jp") @db.VarChar(100)
+  cvKr          String?    @map("cv_kr") @db.VarChar(100)
+  deletedAt     DateTime?  @map("deleted_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  
+  element       Element?   @relation(fields: [elementId], references: [id])
+  weaponType    WeaponType? @relation(fields: [weaponTypeId], references: [id])
+  region        Region?    @relation(fields: [regionId], references: [id])
+  rarity        Rarity?    @relation(fields: [rarityId], references: [id])
+  
+  stats          CharacterStat[]
+  talents        CharacterTalent[] // Tambahkan baris ini
+  constellations CharacterConstellation[]
+  userFavorites  UserFavorite[]
+  passives       CharacterPassive[]
+
+
+  @@map("characters")
+
+}
+
+// Models for Character Stats
+model CharacterStat {
+  id           Int        @id @default(autoincrement())
+  characterId  Int        @map("character_id")
+  ascension    Int
+  level        Int
+  baseAtk      Float      @map("base_atk")
+  statType     String     @map("stat_type") @db.VarChar(20) // Jenis stat (CRIT_RATE, CRIT_DMG, ATK_PERCENT, dll)
+  statValue    Float      @map("stat_value")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  
+  character    Character  @relation(fields: [characterId], references: [id])
+
+  @@map("character_stats")
+}
+
+// Models for Character Talents (menggantikan CharacterSkill)
+model CharacterTalent {
+  id                 Int        @id @default(autoincrement())
+  characterId        Int        @map("character_id")
+  talentType         String     @map("talent_type") @db.VarChar(20) // Ubah dari skillType
+  talentName         String     @map("talent_name") @db.VarChar(100) // Ubah dari skillName
+  talentDescription  String?    @map("talent_description") @db.Text // Ubah dari skillDescription
+  // Hapus skillIcon jika tidak diperlukan
+  
+  character          Character  @relation(fields: [characterId], references: [id])
+
+  @@map("character_talents") // Ubah nama tabel
+}
+
+// Models for Character Passives
+model CharacterPassive {
+  id                 Int        @id @default(autoincrement())
+  characterId        Int        @map("character_id")
+  passiveOrder       Int        @map("passive_order")
+  passiveName        String     @map("passive_name") @db.VarChar(100)
+  passiveDescription String?    @map("passive_description") @db.Text
+  unlockLevel        Int?       @map("unlock_level")
+  
+  character          Character  @relation(fields: [characterId], references: [id])
+
+  @@map("character_passives")
+}
+
+// Models for Character Constellations
+model CharacterConstellation {
+  id                       Int        @id @default(autoincrement())
+  characterId              Int        @map("character_id")
+  constellationLevel      Int        @map("constellation_level")
+  constellationName       String     @map("constellation_name") @db.VarChar(100)
+  constellationDescription String?    @map("constellation_description") @db.Text
+  constellationIcon       String?    @map("constellation_icon") @db.VarChar(255)
+  
+  character               Character  @relation(fields: [characterId], references: [id])
+
+  @@map("character_constellations")
+}
+
+// Models for Weapons
+model Weapon {
+  id               Int        @id @default(autoincrement())
+  name             String     @db.VarChar(100)
+  description      String?    @db.Text
+  weaponTypeId     Int        @map("weapon_type_id")
+  rarityId         Int        @map("rarity_id")
+  specialProperty  String?    @map("special_property") @db.VarChar(50)
+  icon             String?    @db.VarChar(255)
+  story            String?    @db.Text
+  deletedAt        DateTime?  @map("deleted_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+  
+  weaponType       WeaponType @relation(fields: [weaponTypeId], references: [id])
+  rarity           Rarity     @relation(fields: [rarityId], references: [id])
+  
+  passives         WeaponPassive[]
+  refinements      WeaponRefinement[]
+  stats            WeaponStat[]
+  userFavorites    UserFavorite[]
+
+  @@map("weapons")
+}
+
+// Models for Weapon Passives
+model WeaponPassive {
+  id                  Int      @id @default(autoincrement())
+  weaponId            Int      @map("weapon_id")
+  passiveName         String   @map("passive_name") @db.VarChar(100)
+  passiveDescription  String?  @map("passive_description") @db.Text
+  
+  weapon              Weapon   @relation(fields: [weaponId], references: [id])
+
+  @@map("weapon_passives")
+}
+
+// Models for Weapon Refinements
+model WeaponRefinement {
+  id                    Int      @id @default(autoincrement())
+  weaponId              Int      @map("weapon_id")
+  refinementLevel       Int      @map("refinement_level")
+  refinementDescription String?  @map("refinement_description") @db.Text
+  
+  weapon                Weapon   @relation(fields: [weaponId], references: [id])
+
+  @@map("weapon_refinements")
+}
+
+// Models for Weapon Stats
+model WeaponStat {
+  id           Int      @id @default(autoincrement())
+  weaponId     Int      @map("weapon_id")
+  level        Int
+  baseAtk      Float    @map("base_atk")
+  subStatValue Float?   @map("sub_stat_value")
+  
+  weapon       Weapon   @relation(fields: [weaponId], references: [id])
+
+  @@map("weapon_stats")
+}
+
+// Models for User Management (Firebase integration)
+model User {
+  id           Int      @id @default(autoincrement())
+  firebaseUid  String   @unique @map("firebase_uid") @db.VarChar(128)
+  username     String?  @db.VarChar(50)
+  email        String?  @db.VarChar(100)
+  isAdmin      Boolean  @default(false) @map("is_admin")
+  lastLogin    DateTime? @map("last_login")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  favorites    UserFavorite[]
+  activities   UserActivity[]
+
+  @@map("users_mysql")
+}
+
+// Models for User Favorites
+model UserFavorite {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  characterId   Int?     @map("character_id")
+  weaponId      Int?     @map("weapon_id")
+  favoriteType  String   @map("favorite_type") @db.VarChar(10)
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  user          User     @relation(fields: [userId], references: [id])
+  character     Character? @relation(fields: [characterId], references: [id])
+  weapon        Weapon?  @relation(fields: [weaponId], references: [id])
+
+  @@map("user_favorites")
+}
+
+// Models for User Activities
+model UserActivity {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  activityType String   @map("activity_type") @db.VarChar(20)
+  relatedId    Int?     @map("related_id")
+  timestamp    DateTime @default(now())
+  
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@map("user_activities")
+}
+
+// Views
+view CharacterDetailsView {
+  characterId   Int      @map("character_id") @id
+  name          String
+  title         String?
+  icon          String?
+  gachaImg      String?  @map("gacha_img")
+  elementName   String   @map("element_name")
+  elementIcon   String?  @map("element_icon")
+  weaponTypeName String  @map("weapon_type_name")
+  regionName    String   @map("region_name")
+  rarityValue   Int      @map("rarity_value")
+  rarityColor   String   @map("rarity_color")
+
+  @@map("character_details_view")
+}
+
+view WeaponDetailsView {
+  weaponId      Int      @map("weapon_id") @id
+  name          String
+  description   String?
+  icon          String?
+  weaponTypeName String   @map("weapon_type_name")
+  rarityValue   Int       @map("rarity_value")
+  rarityColor   String    @map("rarity_color")
+  specialProperty String? @map("special_property")
+
+  @@map("weapon_details_view")
+}
+
+view UserFavoritesView {
+  favoriteId   Int       @map("favorite_id") @id
+  userId       Int       @map("user_id")
+  username     String?
+  favoriteType String    @map("favorite_type")
+  itemName     String?   @map("item_name")
+  itemIcon     String?   @map("item_icon")
+  createdAt    DateTime  @map("created_at")
+
+  @@map("user_favorites_view")
+}
