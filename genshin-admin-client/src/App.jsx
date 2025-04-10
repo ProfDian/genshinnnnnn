@@ -14,7 +14,7 @@ import Register from "./pages/Register";
 
 // Admin Pages
 import AdminDashboard from "./pages/Dashboard"; // Existing admin dashboard
-import CharacterStats from "./pages/CharacterStats"; // Existing page
+import CharacterStatsForm from "./pages/CharacterStatsForm"; // New component
 
 // User Pages
 import UserDashboard from "./pages/user/Dashboard";
@@ -40,11 +40,12 @@ function App() {
             }
           />
 
+          {/* Update the route to use the new CharacterStatsForm component */}
           <Route
             path="/characters/:id/stats"
             element={
               <AdminRoute>
-                <CharacterStats />
+                <CharacterStatsForm />
               </AdminRoute>
             }
           />

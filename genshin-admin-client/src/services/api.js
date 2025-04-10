@@ -142,7 +142,13 @@ export const characterStatsAPI = {
     return response.data;
   },
 
+  getBaseStatValues: async () => {
+    const response = await api.get("/stats/base-values");
+    return response.data;
+  },
+
   addCharacterStats: async (characterId, data) => {
+    // Data berisi statType, baseStats level 1 (hp, atk, def), dan maxAscensionValues
     const response = await api.post(`/stats/character/${characterId}`, data);
     return response.data;
   },
@@ -153,6 +159,7 @@ export const characterStatsAPI = {
   },
 
   previewCharacterStats: async (data) => {
+    // Data berisi statType, rarityValue, baseStats level 1 (hp, atk, def), dan maxAscensionValues
     const response = await api.post("/stats/preview", data);
     return response.data;
   },

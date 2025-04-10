@@ -6,6 +6,7 @@ const { verifyToken, isAdmin } = require("../middlewares/authMiddleware");
 // Public routes - dapat diakses siapa saja
 router.get("/types", characterStatController.getStatTypes);
 router.get("/levels", characterStatController.getLevelAscensionMap);
+router.get("/base-values", characterStatController.getBaseStatValues);
 router.get(
   "/character/:characterId",
   characterStatController.getCharacterStats

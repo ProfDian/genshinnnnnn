@@ -49,11 +49,22 @@ const regionStorage = new CloudinaryStorage({
   },
 });
 
+// Setup storage for constellation icons
+const constellationStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "genshin/constellations",
+    allowed_formats: ["jpg", "png", "webp"],
+    transformation: [{ width: 300, height: 300, crop: "fill" }],
+  },
+});
+
 // Create middleware for each upload type
 const uploadProfileImage = multer({ storage: profileStorage });
 const uploadCharacter = multer({ storage: characterStorage });
 const uploadWeapon = multer({ storage: weaponStorage });
 const uploadRegion = multer({ storage: regionStorage });
+const uploadConstellation = multer({ storage: constellationStorage });
 
 module.exports = {
   cloudinary,
@@ -61,4 +72,5 @@ module.exports = {
   uploadCharacter,
   uploadWeapon,
   uploadRegion,
+  uploadConstellation,
 };

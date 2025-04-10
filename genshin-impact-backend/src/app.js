@@ -10,6 +10,7 @@ const weaponRoutes = require("./routes/weaponRoutes");
 const regionRoutes = require("./routes/regionRoutes");
 const userRoutes = require("./routes/userRoutes");
 const characterStatRoutes = require("./routes/characterStatRoutes");
+const characterSkillsRoutes = require("./routes/characterSkillsRoutes"); // Tambahkan ini
 
 // Create Express app
 const app = express();
@@ -28,6 +29,7 @@ app.use("/api/weapons", weaponRoutes);
 app.use("/api/regions", regionRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/stats", characterStatRoutes);
+app.use("/api/skills", characterSkillsRoutes); // Tambahkan ini
 
 // Root route
 app.get("/", (req, res) => {
