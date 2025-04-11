@@ -5,6 +5,7 @@ const { verifyToken, isAdmin } = require("../middlewares/authMiddleware");
 
 // User favorites routes
 router.get("/favorites", verifyToken, userController.getUserFavorites);
+router.get("/favorites/:userId", userController.getUserFavoritesById); // Tambahkan route baru
 router.post("/favorites", verifyToken, userController.addToFavorites);
 router.delete(
   "/favorites/:id",
