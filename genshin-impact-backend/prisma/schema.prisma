@@ -193,7 +193,7 @@ model Weapon {
   userFavorites   UserFavorite[]
   passives        WeaponPassive[]
   refinements     WeaponRefinement[]
-  stats           WeaponStat[]
+  weapon_stats    WeaponStat[]
   rarity          Rarity             @relation(fields: [rarityId], references: [id])
   weaponType      WeaponType         @relation(fields: [weaponTypeId], references: [id])
 
@@ -225,14 +225,16 @@ model WeaponRefinement {
 }
 
 model WeaponStat {
-  id           Int    @id @default(autoincrement())
-  weaponId     Int    @map("weapon_id")
-  level        Int
-  baseAtk      Float  @map("base_atk")
-  subStatValue Float? @map("sub_stat_value")
-  weapon       Weapon @relation(fields: [weaponId], references: [id])
+  id             Int     @id @default(autoincrement())
+  weapon_id      Int
+  level          Int
+  base_atk       Float
+  sub_stat_value Float?
+  ascension      Int     @default(0)
+  substat_type   String? @db.VarChar(50)
+  weapons        Weapon  @relation(fields: [weapon_id], references: [id])
 
-  @@index([weaponId], map: "weapon_stats_weapon_id_fkey")
+  @@index([weapon_id], map: "weapon_stats_weapon_id_fkey")
   @@map("weapon_stats")
 }
 
