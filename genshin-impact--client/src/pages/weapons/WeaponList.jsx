@@ -64,6 +64,7 @@ const WeaponList = () => {
 
         const response = await api.get("/weapons", { params });
         setWeapons(response.data.weapons);
+        console.log(response.data);
         setPagination(response.data.pagination);
       } catch (err) {
         console.error("Error fetching weapons:", err);

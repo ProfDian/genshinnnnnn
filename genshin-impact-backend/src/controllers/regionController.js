@@ -1,4 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Prisma } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 // Get all regions
@@ -43,28 +43,30 @@ const getRegionById = async (req, res) => {
 };
 
 // Get characters by region
-const getCharactersByRegion = async (req, res) => {
+async function getCharactersByRegion(req, res) {
   try {
-    const { id } = req.params;
+    const regionId = parseInt(req.params.id);
 
-    const characters = await prisma.characterDetailsView.findMany({
-      where: {
-        regionName: {
-          equals: (
-            await prisma.region.findUnique({
-              where: { id: parseInt(id) },
-            })
-          )?.regionName,
-        },
-      },
-    });
+    // Using Prisma's $queryRaw with correct table and column names based on your schema
+    const characters = await prisma.$queryRaw`
+      SELECT 
+        c.id, c.name, c.title, c.icon, c.gacha_img,
+        e.element_name AS elementName, e.element_color AS elementColor,
+        wt.weapon_type_name AS weaponType,
+        r.rarity_value AS rarity, r.rarity_color AS rarityColor
+      FROM characters c
+      LEFT JOIN elements e ON c.element_id = e.id
+      LEFT JOIN weapon_types wt ON c.weapon_type_id = wt.id
+      LEFT JOIN rarities r ON c.rarity_id = r.id
+      WHERE c.region_id = ${regionId}
+    `;
 
-    res.status(200).json(characters);
+    res.json(characters);
   } catch (error) {
     console.error("Get characters by region error:", error);
-    res.status(500).json({ message: "Error fetching characters by region" });
+    res.status(500).json({ error: "Failed to fetch characters" });
   }
-};
+}
 
 // Create region (admin only)
 const createRegion = async (req, res) => {

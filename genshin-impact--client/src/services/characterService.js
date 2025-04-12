@@ -4,6 +4,7 @@ import api from "./api";
 const characterService = {
   // Get all characters with filtering, pagination
   getAllCharacters: (params = {}) => {
+    console.log(params);
     return api.get("/characters", { params });
   },
 

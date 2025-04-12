@@ -1,12 +1,10 @@
-// Redesign CharacterDetail.jsx
-
+// src/pages/characters/CharacterDetail.jsx
 import { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../../services/api";
 import { AuthContext } from "../../contexts/AuthContext";
 import Loader from "../../components/common/Loader";
-import FavoriteToggle from "../../components/ui/FavoriteToggle";
 import Badge from "../../components/ui/Badge";
+import { characterService, userService } from "../../services";
 
 const CharacterDetail = () => {
   const { id } = useParams();
@@ -15,29 +13,25 @@ const CharacterDetail = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
 
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Fetch logic remains the same
+  // Fetch character data using characterService
   useEffect(() => {
     const fetchCharacter = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        const response = await api.get(`/characters/${id}`);
+        // Use characterService instead of direct API call
+        const response = await characterService.getCharacterById(id);
         setCharacter(response.data);
 
-        // Check if character is in user favorites
+        // After character is loaded, check favorite status
         if (user) {
-          const favoritesResponse = await api.get("/user/favorites");
-          const isCharacterFavorite = favoritesResponse.data.some(
-            (fav) =>
-              fav.favoriteType === "CHARACTER" &&
-              fav.character?.id === parseInt(id)
-          );
-          setIsFavorite(isCharacterFavorite);
+          checkFavoriteStatus(response.data.id);
         }
       } catch (err) {
         console.error("Error fetching character:", err);
@@ -48,19 +42,100 @@ const CharacterDetail = () => {
     };
 
     fetchCharacter();
-  }, [id, user]);
+  }, [id]);
 
-  const handleFavoriteToggle = async () => {
-    // Toggle logic remains the same
+  // Check favorite status separately when user logs in/out
+  useEffect(() => {
+    if (user && character) {
+      checkFavoriteStatus(character.id);
+    } else if (!user) {
+      setIsFavorite(false);
+    }
+  }, [user]);
+
+  // Helper function to check if character is in favorites
+  const checkFavoriteStatus = async (characterId) => {
+    try {
+      const favorited = await userService.checkFavoriteStatus(
+        "CHARACTER",
+        characterId
+      );
+      setIsFavorite(favorited);
+    } catch (err) {
+      console.error("Error checking favorite status:", err);
+    }
   };
 
-  if (loading) return <Loader />;
-  if (error)
+  // Toggle favorite status using userService
+  const handleFavoriteToggle = async () => {
+    if (!user) {
+      navigate("/login", {
+        state: {
+          from: `/characters/${id}`,
+          message: "Please login to add favorites",
+        },
+      });
+      return;
+    }
+
+    setIsTogglingFavorite(true);
+
+    try {
+      if (isFavorite) {
+        // Find favorite ID then remove
+        const favoriteId = await userService.findFavoriteId("CHARACTER", id);
+        if (favoriteId) {
+          await userService.removeFromFavorites(favoriteId);
+          setIsFavorite(false);
+        }
+      } else {
+        // Add to favorites
+        await userService.addToFavorites({
+          favoriteType: "CHARACTER",
+          characterId: parseInt(id),
+        });
+        setIsFavorite(true);
+      }
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+    } finally {
+      setIsTogglingFavorite(false);
+    }
+  };
+
+  if (loading)
     return (
-      <div className="text-center py-10">
-        <p className="text-red-500">{error}</p>
+      <div className="flex justify-center items-center min-h-[300px]">
+        <Loader />
       </div>
     );
+
+  if (error)
+    return (
+      <div className="text-center py-10 bg-red-900 bg-opacity-20 rounded-lg border border-red-700">
+        <svg
+          className="w-12 h-12 text-red-500 mx-auto mb-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <p className="text-red-300 text-lg">{error}</p>
+        <button
+          className="mt-4 px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded-md transition"
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
+      </div>
+    );
+
   if (!character) return null;
 
   const {
@@ -77,6 +152,12 @@ const CharacterDetail = () => {
     talents,
     passives,
     constellations,
+    cvEn,
+    cvJp,
+    cvChs,
+    cvKr,
+    birthday,
+    constellation,
   } = character;
 
   // Get element color for styling
@@ -107,7 +188,7 @@ const CharacterDetail = () => {
 
   return (
     <div className="pb-12">
-      {/* Hero Section - Completely Redesigned */}
+      {/* Hero Section - Character Showcase */}
       <div className="relative mb-8">
         {/* Background with element theme */}
         <div
@@ -168,14 +249,38 @@ const CharacterDetail = () => {
                   {title && (
                     <p className="text-xl opacity-90 italic">"{title}"</p>
                   )}
+
+                  {/* Constellation */}
+                  {constellation && (
+                    <p className="text-lg text-gray-300 mt-1">
+                      <span className="opacity-70">Constellation:</span>{" "}
+                      {constellation}
+                    </p>
+                  )}
                 </div>
 
                 {/* Favorite toggle */}
-                <FavoriteToggle
-                  isFavorite={isFavorite}
-                  onToggle={handleFavoriteToggle}
-                  size="lg"
-                />
+                <button
+                  onClick={handleFavoriteToggle}
+                  disabled={isTogglingFavorite}
+                  className="flex items-center justify-center h-12 w-12 rounded-full bg-gray-800 bg-opacity-50 hover:bg-opacity-70 transition-colors"
+                >
+                  <svg
+                    className={`w-7 h-7 ${
+                      isFavorite ? "text-red-500" : "text-gray-400"
+                    } transition-colors duration-200`}
+                    fill={isFavorite ? "currentColor" : "none"}
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={isFavorite ? 0 : 2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
+                </button>
               </div>
 
               {/* Character attributes */}
@@ -243,8 +348,8 @@ const CharacterDetail = () => {
                   </div>
                 )}
 
-                {/* Birth day */}
-                {character.birthday && (
+                {/* Birthday */}
+                {birthday && (
                   <div className="bg-black bg-opacity-30 backdrop-blur-sm rounded-lg p-4 border border-white/10">
                     <h3 className="text-sm text-gray-300 uppercase font-medium tracking-wider mb-2">
                       Birthday
@@ -263,12 +368,51 @@ const CharacterDetail = () => {
                           d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                         />
                       </svg>
-                      <span className="text-lg font-medium">
-                        {character.birthday}
-                      </span>
+                      <span className="text-lg font-medium">{birthday}</span>
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Voice Actor Section */}
+              <div className="mt-6 bg-black bg-opacity-30 backdrop-blur-sm p-4 rounded-lg border border-white/10">
+                <h3 className="text-sm text-gray-300 uppercase font-medium tracking-wider mb-3">
+                  Voice Actors
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {cvEn && (
+                    <div>
+                      <span className="text-gray-400 text-sm block">
+                        English
+                      </span>
+                      <span className="text-white">{cvEn}</span>
+                    </div>
+                  )}
+                  {cvJp && (
+                    <div>
+                      <span className="text-gray-400 text-sm block">
+                        Japanese
+                      </span>
+                      <span className="text-white">{cvJp}</span>
+                    </div>
+                  )}
+                  {cvChs && (
+                    <div>
+                      <span className="text-gray-400 text-sm block">
+                        Chinese
+                      </span>
+                      <span className="text-white">{cvChs}</span>
+                    </div>
+                  )}
+                  {cvKr && (
+                    <div>
+                      <span className="text-gray-400 text-sm block">
+                        Korean
+                      </span>
+                      <span className="text-white">{cvKr}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -293,9 +437,7 @@ const CharacterDetail = () => {
             className={`px-6 py-4 font-medium transition-colors flex items-center gap-2
               ${
                 activeTab === "overview"
-                  ? `text-white bg-${
-                      element?.elementName?.toLowerCase() || "indigo"
-                    }-600`
+                  ? `text-white`
                   : "text-gray-300 hover:text-white hover:bg-gray-700"
               }`}
             style={
@@ -325,9 +467,7 @@ const CharacterDetail = () => {
             className={`px-6 py-4 font-medium transition-colors flex items-center gap-2
               ${
                 activeTab === "stats"
-                  ? `text-white bg-${
-                      element?.elementName?.toLowerCase() || "indigo"
-                    }-600`
+                  ? `text-white`
                   : "text-gray-300 hover:text-white hover:bg-gray-700"
               }`}
             style={
@@ -357,9 +497,7 @@ const CharacterDetail = () => {
             className={`px-6 py-4 font-medium transition-colors flex items-center gap-2
               ${
                 activeTab === "talents"
-                  ? `text-white bg-${
-                      element?.elementName?.toLowerCase() || "indigo"
-                    }-600`
+                  ? `text-white`
                   : "text-gray-300 hover:text-white hover:bg-gray-700"
               }`}
             style={
@@ -389,9 +527,7 @@ const CharacterDetail = () => {
             className={`px-6 py-4 font-medium transition-colors flex items-center gap-2
               ${
                 activeTab === "passives"
-                  ? `text-white bg-${
-                      element?.elementName?.toLowerCase() || "indigo"
-                    }-600`
+                  ? `text-white`
                   : "text-gray-300 hover:text-white hover:bg-gray-700"
               }`}
             style={
@@ -421,9 +557,7 @@ const CharacterDetail = () => {
             className={`px-6 py-4 font-medium transition-colors flex items-center gap-2
               ${
                 activeTab === "constellations"
-                  ? `text-white bg-${
-                      element?.elementName?.toLowerCase() || "indigo"
-                    }-600`
+                  ? `text-white`
                   : "text-gray-300 hover:text-white hover:bg-gray-700"
               }`}
             style={
@@ -449,10 +583,9 @@ const CharacterDetail = () => {
           </button>
         </div>
       </div>
-
-      {/* Tab Content - Can use similar styles as before but with improved aesthetics */}
+      {/* Tab Content */}
       <div className="bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-700">
-        {/* Tab content remains similar but with enhanced styling */}
+        {/* Overview Tab */}
         {activeTab === "overview" && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6 pb-3 border-b border-gray-700 flex items-center">
@@ -471,13 +604,45 @@ const CharacterDetail = () => {
               </svg>
               About {name}
             </h2>
-            <p className="text-gray-300 leading-relaxed">
-              {detail || "No detailed information available yet."}
-            </p>
+
+            <div className="prose prose-invert max-w-none">
+              <p className="text-gray-300 leading-relaxed">
+                {detail || "No detailed information available yet."}
+              </p>
+
+              {/* Additional overview information */}
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {region && (
+                  <div className="bg-gray-700 bg-opacity-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium text-white mb-2">
+                      Native of {region.regionName}
+                    </h3>
+                    <p className="text-gray-300">
+                      {region.overview ||
+                        `${name} is from the region of ${region.regionName}.`}
+                    </p>
+                  </div>
+                )}
+
+                {element && (
+                  <div
+                    className="bg-gray-700 bg-opacity-50 p-4 rounded-lg"
+                    style={{ borderLeft: `4px solid ${elementColor.dark}` }}
+                  >
+                    <h3 className="text-lg font-medium text-white mb-2">
+                      {element.elementName} Vision
+                    </h3>
+                    <p className="text-gray-300">
+                      {`${name} wields the power of ${element.elementName}, using it to great effect in combat.`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Similar improvements for other tabs... */}
+        {/* Stats Tab */}
         {activeTab === "stats" && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6 pb-3 border-b border-gray-700 flex items-center">
@@ -545,7 +710,8 @@ const CharacterDetail = () => {
                               backgroundColor: elementColor.dark + "40",
                             }}
                           >
-                            {stat.statType.replace("_", " ")}: {stat.statValue}%
+                            {stat.statType.replace(/_/g, " ")}: {stat.statValue}
+                            %
                           </span>
                         </td>
                       </tr>
@@ -565,7 +731,7 @@ const CharacterDetail = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
                 <p className="text-gray-400">
@@ -576,7 +742,7 @@ const CharacterDetail = () => {
           </div>
         )}
 
-        {/* Tab untuk Talents */}
+        {/* Talents Tab */}
         {activeTab === "talents" && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6 pb-3 border-b border-gray-700 flex items-center">
@@ -662,7 +828,7 @@ const CharacterDetail = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
                 <p className="text-gray-400 text-lg">
@@ -676,7 +842,7 @@ const CharacterDetail = () => {
           </div>
         )}
 
-        {/* Tab untuk Passives */}
+        {/* Passives Tab */}
         {activeTab === "passives" && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6 pb-3 border-b border-gray-700 flex items-center">
@@ -737,7 +903,7 @@ const CharacterDetail = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
                 <p className="text-gray-400 text-lg">
@@ -751,7 +917,7 @@ const CharacterDetail = () => {
           </div>
         )}
 
-        {/* Tab untuk Constellations */}
+        {/* Constellations Tab */}
         {activeTab === "constellations" && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6 pb-3 border-b border-gray-700 flex items-center">
@@ -850,7 +1016,7 @@ const CharacterDetail = () => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
                 <p className="text-gray-400 text-lg">

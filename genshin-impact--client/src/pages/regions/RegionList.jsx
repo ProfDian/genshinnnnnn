@@ -17,6 +17,7 @@ const RegionList = () => {
 
       try {
         const response = await api.get("/regions");
+        console.log(response.data.regions);
         setRegions(response.data);
         console.log(response.data);
       } catch (err) {

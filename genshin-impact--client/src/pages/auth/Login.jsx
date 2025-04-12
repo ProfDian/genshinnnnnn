@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../contexts/AuthContext";
 
@@ -10,8 +10,19 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { loginUser } = useContext(AuthContext);
+  const { loginUser, user } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // Check if user is already logged in and redirect accordingly
+  useEffect(() => {
+    if (user) {
+      if (user.isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
+    }
+  }, [user, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -26,9 +37,21 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await loginUser(formData);
-      navigate("/");
+      const userData = await loginUser(formData);
+
+      // Console log untuk debugging
+      console.log("Login successful, userData:", userData);
+
+      // Redirect berdasarkan peran user
+      if (userData && userData.isAdmin) {
+        console.log("User is admin, redirecting to /admin");
+        navigate("/admin");
+      } else {
+        console.log("User is not admin, redirecting to /");
+        navigate("/");
+      }
     } catch (err) {
+      console.error("Login error:", err);
       setError(
         err.response?.data?.message || "Login failed. Please try again."
       );

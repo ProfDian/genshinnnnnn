@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import api from "../../services/api";
+import { regionService } from "../../services";
 import CharacterCard from "../../components/cards/CharacterCard";
 import Loader from "../../components/common/Loader";
 
@@ -19,14 +19,12 @@ const RegionDetail = () => {
 
       try {
         const [regionResponse, charactersResponse] = await Promise.all([
-          api.get(`/regions/${id}`),
-          api.get(`/regions/${id}/characters`),
+          regionService.getRegionById(id),
+          regionService.getCharactersByRegion(id),
         ]);
 
         setRegion(regionResponse.data);
         setCharacters(charactersResponse.data);
-        console.log(regionResponse.data);
-        console.log(charactersResponse.data);
       } catch (err) {
         console.error("Error fetching region data:", err);
         setError("Failed to load region data. Please try again later.");

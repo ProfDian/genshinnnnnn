@@ -1,11 +1,16 @@
 // src/services/authService.js
 import api from "./api";
 
+// authService.js
 export const login = async ({ username, password }) => {
   const response = await api.post("/auth/login", { username, password });
-
   const { token, user } = response.data;
+
+  // Simpan token
   localStorage.setItem("token", token);
+
+  // Simpan flag isAdmin jika perlu
+  localStorage.setItem("isAdmin", user.isAdmin || false);
 
   return user;
 };
@@ -71,4 +76,13 @@ export const updateProfile = async (userData) => {
 
 export const changePassword = async ({ currentPassword, newPassword }) => {
   await api.put("/auth/change-password", { currentPassword, newPassword });
+};
+
+export default {
+  login,
+  register,
+  logout,
+  getCurrentUser,
+  updateProfile,
+  changePassword,
 };

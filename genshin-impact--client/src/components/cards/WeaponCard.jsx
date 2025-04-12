@@ -1,13 +1,79 @@
 // src/components/cards/WeaponCard.jsx
-import { Link } from "react-router-dom";
+import { useState, useEffect, useContext } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "../../contexts/AuthContext";
+import { userService } from "../../services";
 
 const WeaponCard = ({ weapon }) => {
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   if (!weapon) return null;
 
-  const { id, name, rarity, icon, weaponType } = weapon;
+  const { id, name, rarity, icon, weaponType, specialProperty } = weapon;
+
+  // Check if weapon is in favorites when component mounts
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      if (user) {
+        try {
+          // Use userService to check if this weapon is favorited
+          const favorited = await userService.checkFavoriteStatus("WEAPON", id);
+          setIsFavorite(favorited);
+        } catch (err) {
+          console.error("Error checking favorite status:", err);
+        }
+      }
+    };
+
+    checkFavoriteStatus();
+  }, [id, user]);
+
+  // Handle favorite toggle using userService
+  const handleFavoriteToggle = async (e) => {
+    e.preventDefault(); // Prevent card link click
+    e.stopPropagation();
+
+    if (!user) {
+      // Redirect to login if not logged in
+      navigate("/login", {
+        state: {
+          from: `/weapons/${id}`,
+          message: "Please login to add favorites",
+        },
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      if (isFavorite) {
+        // Find favorite ID then remove using service
+        const favoriteId = await userService.findFavoriteId("WEAPON", id);
+        if (favoriteId) {
+          await userService.removeFromFavorites(favoriteId);
+          setIsFavorite(false);
+        }
+      } else {
+        // Add to favorites using service
+        await userService.addToFavorites({
+          favoriteType: "WEAPON",
+          weaponId: id,
+        });
+        setIsFavorite(true);
+      }
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Default color if not provided
-  const rarityColor = rarity?.color || "#6A94BC"; // Default 3-star color
+  const rarityColor = rarity?.rarityColor || "#6A94BC"; // Default 3-star color
 
   return (
     <Link to={`/weapons/${id}`} className="block">
@@ -17,6 +83,48 @@ const WeaponCard = ({ weapon }) => {
           background: `linear-gradient(180deg, ${rarityColor} 0%, rgba(0, 0, 0, 0.8) 100%)`,
         }}
       >
+        {/* Weapon Type Icon (top right) */}
+        {weaponType?.weaponTypeIcon && (
+          <div className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1 z-20">
+            <img
+              src={weaponType.weaponTypeIcon}
+              alt={weaponType.weaponTypeName}
+              className="w-6 h-6"
+              title={weaponType.weaponTypeName}
+            />
+          </div>
+        )}
+
+        {/* Favorite Toggle Button */}
+        {user && (
+          <button
+            onClick={handleFavoriteToggle}
+            disabled={isLoading}
+            className={`absolute top-2 left-2 z-20 w-8 h-8 flex items-center justify-center rounded-full ${
+              isLoading ? "opacity-50" : "hover:bg-black hover:bg-opacity-30"
+            }`}
+            aria-label={
+              isFavorite ? "Remove from favorites" : "Add to favorites"
+            }
+          >
+            <svg
+              className={`w-5 h-5 ${
+                isFavorite ? "text-red-500" : "text-gray-300"
+              } transition-colors duration-200`}
+              fill={isFavorite ? "currentColor" : "none"}
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={isFavorite ? 0 : 2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          </button>
+        )}
+
         {/* Weapon Image with gradient overlay */}
         <div className="relative h-40 sm:h-48 flex items-center justify-center overflow-hidden">
           {/* Background pattern */}
@@ -32,17 +140,6 @@ const WeaponCard = ({ weapon }) => {
             alt={name}
             className="max-h-full max-w-full object-contain z-10 drop-shadow-lg"
           />
-
-          {/* Weapon Type Icon (top right) */}
-          {weaponType?.icon && (
-            <div className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1">
-              <img
-                src={weaponType.icon}
-                alt={weaponType.name}
-                className="w-6 h-6"
-              />
-            </div>
-          )}
 
           {/* Rarity Stars (bottom) */}
           <div className="absolute bottom-1 left-0 w-full flex justify-center">
@@ -61,11 +158,18 @@ const WeaponCard = ({ weapon }) => {
           </div>
         </div>
 
-        {/* Weapon Name */}
+        {/* Weapon Name and Special Property */}
         <div className="py-3 px-3 text-center">
           <h3 className="text-sm font-medium text-white truncate">{name}</h3>
           {weaponType && (
-            <p className="text-xs text-gray-300 mt-1">{weaponType.name}</p>
+            <p className="text-xs text-gray-300 mt-1">
+              {weaponType.weaponTypeName}
+            </p>
+          )}
+          {specialProperty && (
+            <p className="text-xs text-yellow-300 mt-1 truncate">
+              {specialProperty}
+            </p>
           )}
         </div>
       </div>
