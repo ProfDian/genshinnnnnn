@@ -1,27 +1,89 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
-// Update character (admin only)
+// Get all characters with search and filter functionality
 const getAllCharacters = async (req, res) => {
   try {
-    const characters = await prisma.character.findMany({
-      where: {
-        deletedAt: null,
-      },
-      include: {
-        element: true,
-        weaponType: true,
-        region: true,
-        rarity: true,
+    const {
+      search, // Search by name
+      elementId, // Filter by element
+      weaponTypeId, // Filter by weapon type
+      regionId, // Filter by region
+      rarityId, // Filter by rarity
+      sortBy, // Sort options: 'name', 'releaseDate'
+      sortOrder, // Sort direction: 'asc', 'desc'
+      page = 1, // Pagination: current page
+      limit = 20, // Pagination: items per page
+    } = req.query;
+
+    // Build filter conditions
+    const where = {
+      deletedAt: null,
+    };
+
+    // Add search filter if provided
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { title: { contains: search } },
+      ];
+    }
+
+    // Add other filters if provided
+    if (elementId) where.elementId = parseInt(elementId);
+    if (weaponTypeId) where.weaponTypeId = parseInt(weaponTypeId);
+    if (regionId) where.regionId = parseInt(regionId);
+    if (rarityId) where.rarityId = parseInt(rarityId);
+
+    // Build sort options
+    let orderBy = {};
+    if (sortBy === "releaseDate") {
+      // Sort by release date
+      orderBy.releaseDate = sortOrder === "desc" ? "desc" : "asc";
+    } else {
+      // Default to sorting by name
+      orderBy.name = sortOrder === "desc" ? "desc" : "asc";
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Execute query with filters, sorting, and pagination
+    const [characters, totalCount] = await Promise.all([
+      prisma.character.findMany({
+        where,
+        orderBy,
+        skip,
+        take,
+        include: {
+          element: true,
+          weaponType: true,
+          region: true,
+          rarity: true,
+        },
+      }),
+      prisma.character.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / take);
+
+    res.status(200).json({
+      characters,
+      pagination: {
+        totalItems: totalCount,
+        totalPages,
+        currentPage: parseInt(page),
+        itemsPerPage: take,
       },
     });
-
-    res.status(200).json(characters);
   } catch (error) {
     console.error("Get characters error:", error);
     res.status(500).json({ message: "Error fetching characters" });
   }
 };
+
 const getCharacterById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -64,6 +126,7 @@ const getCharacterById = async (req, res) => {
     res.status(500).json({ message: "Error fetching character" });
   }
 };
+
 const createCharacter = async (req, res) => {
   try {
     const {
@@ -123,6 +186,7 @@ const createCharacter = async (req, res) => {
     res.status(500).json({ message: "Error creating character" });
   }
 };
+
 const updateCharacter = async (req, res) => {
   try {
     const { id } = req.params;

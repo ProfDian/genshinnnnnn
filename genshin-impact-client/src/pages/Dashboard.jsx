@@ -20,7 +20,8 @@ export default function Dashboard() {
     try {
       setLoading(true);
       const data = await characterAPI.getAllCharacters();
-      setCharacters(data);
+      console.log(data);
+      setCharacters(data.characters);
     } catch (error) {
       console.error("Error fetching characters:", error);
       Swal.fire({

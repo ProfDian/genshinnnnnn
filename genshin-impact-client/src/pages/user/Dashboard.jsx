@@ -2,11 +2,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { characterAPI } from "../../services/api";
+import { characterAPI, weaponAPI } from "../../services/api";
 import { FaUser, FaStar, FaHeart, FaRegHeart } from "react-icons/fa";
 
 export default function UserDashboard() {
   const [characters, setCharacters] = useState([]);
+  const [weapons, setWeapons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState([]);
   const { userInfo, logout } = useAuth();
@@ -14,6 +15,7 @@ export default function UserDashboard() {
 
   useEffect(() => {
     fetchCharacters();
+    fetchWeapons();
     fetchFavorites();
   }, []);
 
@@ -21,22 +23,34 @@ export default function UserDashboard() {
     try {
       setLoading(true);
       const data = await characterAPI.getAllCharacters();
-      console.log(data);
-      setCharacters(data);
+      console.log(data.characters);
+      setCharacters(data.characters);
     } catch (error) {
       console.error("Error fetching characters:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function fetchWeapons() {
+    try {
+      setLoading(true);
+      const data = await weaponAPI.getAllWeapons();
+      console.log(data.weapons);
+      setWeapons(data.weapons);
+    } catch (error) {
+      console.error("Error fetching weapons:", error);
+    } finally {
       setLoading(false);
     }
   }
 
   async function fetchFavorites() {
     try {
-      // We'll implement this functionality later
+      // Implementasi fetch favorite nanti
       setFavorites([]);
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching favorites:", error);
-      setLoading(false);
     }
   }
 
@@ -54,12 +68,11 @@ export default function UserDashboard() {
   };
 
   const toggleFavorite = (characterId) => {
-    // We'll implement this functionality later
+    // Implementasi toggle favorite nanti
     console.log("Toggle favorite for character:", characterId);
   };
 
   const isCharacterFavorite = (characterId) => {
-    // Check if character is in favorites
     return favorites.some((fav) => fav.characterId === characterId);
   };
 
@@ -101,11 +114,11 @@ export default function UserDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Character Section */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-gray-800 mb-4">
             Characters
           </h2>
-
           {loading ? (
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
@@ -174,6 +187,58 @@ export default function UserDashboard() {
                     >
                       View Details
                     </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Weapon Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">Weapons</h2>
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
+              <p className="mt-2 text-gray-600">Loading weapons...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {weapons.map((weapon) => (
+                <div
+                  key={weapon.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                >
+                  <div className="relative h-48 bg-gray-200">
+                    {weapon.icon ? (
+                      <img
+                        src={weapon.icon}
+                        alt={weapon.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FaStar className="text-gray-400 text-4xl" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      {weapon.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-2">
+                      {weapon.weaponType.weaponTypeName || "Unknown Type"}
+                    </p>
+                    <div className="flex">
+                      {Array.from({ length: weapon.rarity || 0 }).map(
+                        (_, index) => (
+                          <FaStar
+                            key={index}
+                            className="h-4 w-4 text-yellow-400"
+                          />
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

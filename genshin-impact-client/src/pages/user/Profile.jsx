@@ -45,6 +45,7 @@ export default function Profile() {
   async function fetchFavorites() {
     try {
       const data = await userAPI.getFavorites();
+      console.log(data);
       setFavorites(data);
     } catch (err) {
       console.error("Error fetching favorites:", err);

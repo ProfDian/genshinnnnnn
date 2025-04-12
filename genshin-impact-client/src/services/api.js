@@ -65,11 +65,13 @@ export const authAPI = {
 export const characterAPI = {
   getAllCharacters: async () => {
     const response = await api.get("/characters");
+
     return response.data;
   },
 
   getCharacterById: async (id) => {
     const response = await api.get(`/characters/${id}`);
+
     return response.data;
   },
 
@@ -183,4 +185,11 @@ export const userAPI = {
   },
 };
 
+//sekarang buatlah api untuk mengambil senjatanya
+export const weaponAPI = {
+  getAllWeapons: async () => {
+    const response = await api.get("/weapons");
+    return response.data;
+  },
+};
 export default api;

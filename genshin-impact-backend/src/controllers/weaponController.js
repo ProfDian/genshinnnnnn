@@ -1,26 +1,86 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const weaponStatService = require("../services/weaponStatService"); // Tambahkan baris ini
+const weaponStatService = require("../services/weaponStatService");
 
-// Get all weapons
+// Get all weapons with search and filter functionality
 const getAllWeapons = async (req, res) => {
   try {
-    const weapons = await prisma.weapon.findMany({
-      where: {
-        deletedAt: null,
-      },
-      include: {
-        weaponType: true,
-        rarity: true,
+    const {
+      search, // Search by name
+      weaponTypeId, // Filter by weapon type
+      rarityId, // Filter by rarity
+      sortBy, // Sort options: 'name', 'baseAtk'
+      sortOrder, // Sort direction: 'asc', 'desc'
+      page = 1, // Pagination: current page
+      limit = 20, // Pagination: items per page
+    } = req.query;
+
+    // Build filter conditions
+    const where = {
+      deletedAt: null,
+    };
+
+    // Add search filter if provided
+    if (search) {
+      where.OR = [{ name: { contains: search } }];
+    }
+
+    // Add other filters if provided
+    if (weaponTypeId) where.weaponTypeId = parseInt(weaponTypeId);
+    if (rarityId) where.rarityId = parseInt(rarityId);
+
+    // Build sort options
+    let orderBy = {};
+    if (sortBy === "baseAtk") {
+      // For baseAtk sorting, we need to include weapon_stats
+      // Sort by first level's base ATK (complex query)
+      orderBy = {
+        weapon_stats: {
+          _count: sortOrder === "desc" ? "desc" : "asc",
+        },
+      };
+    } else {
+      // Default to sorting by name
+      orderBy.name = sortOrder === "desc" ? "desc" : "asc";
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Execute query with filters, sorting, and pagination
+    const [weapons, totalCount] = await Promise.all([
+      prisma.weapon.findMany({
+        where,
+        orderBy,
+        skip,
+        take,
+        include: {
+          weaponType: true,
+          rarity: true,
+        },
+      }),
+      prisma.weapon.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / take);
+
+    res.status(200).json({
+      weapons,
+      pagination: {
+        totalItems: totalCount,
+        totalPages,
+        currentPage: parseInt(page),
+        itemsPerPage: take,
       },
     });
-
-    res.status(200).json(weapons);
   } catch (error) {
     console.error("Get weapons error:", error);
     res.status(500).json({ message: "Error fetching weapons" });
   }
 };
+
 // Get weapon by ID
 const getWeaponById = async (req, res) => {
   try {
@@ -59,6 +119,7 @@ const getWeaponById = async (req, res) => {
     res.status(500).json({ message: "Error fetching weapon" });
   }
 };
+
 // Create weapon (admin only)
 const createWeapon = async (req, res) => {
   try {
@@ -147,6 +208,7 @@ const createWeapon = async (req, res) => {
       .json({ message: "Error creating weapon", error: error.message });
   }
 };
+
 // Update weapon (admin only)
 const updateWeapon = async (req, res) => {
   try {
