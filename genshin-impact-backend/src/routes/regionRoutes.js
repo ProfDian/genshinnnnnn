@@ -41,4 +41,39 @@ router.post(
   regionController.addRegionFeature
 );
 
+router.delete(
+  "/areas/:areaId",
+  verifyToken,
+  isAdmin,
+  regionController.deleteRegionArea
+);
+
+router.get(
+  "/areas/trash",
+  verifyToken,
+  isAdmin,
+  regionController.getDeletedRegionAreas
+);
+
+router.put(
+  "/areas/:areaId/restore",
+  verifyToken,
+  isAdmin,
+  regionController.restoreRegionArea
+);
+// Update routes for areas and features
+router.put(
+  "/areas/:areaId",
+  verifyToken,
+  isAdmin,
+  regionController.updateRegionArea
+);
+
+router.put(
+  "/features/:featureId",
+  verifyToken,
+  isAdmin,
+  regionController.updateRegionFeature
+);
+
 module.exports = router;

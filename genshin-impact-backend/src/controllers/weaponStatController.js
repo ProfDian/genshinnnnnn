@@ -88,7 +88,7 @@ const addWeaponStats = async (req, res) => {
 
     // Hapus stats lama jika ada
     await prisma.weaponStat.deleteMany({
-      where: { weaponId: parseInt(weaponId) },
+      where: { weapon_id: parseInt(weaponId) },
     });
 
     // Generate stats baru

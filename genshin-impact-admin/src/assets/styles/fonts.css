@@ -1,0 +1,57 @@
+/* Impor font Spectral sebagai alternatif dari Google Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&display=swap");
+
+/* Jika Anda memiliki font HYWenHei, gunakan kode berikut */
+@font-face {
+  font-family: "HYWenHei";
+  src: url("../fonts/HYWenHei.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "HYWenHei";
+  src: url("../fonts/HYWenHei-Bold.ttf") format("truetype");
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* CSS Kustom untuk memberi gaya Genshin Impact */
+:root {
+  --genshin-gradient: linear-gradient(
+    to right,
+    #f9a825,
+    #4fcfbe,
+    #9be8fb,
+    #a5c83b,
+    #af8ec1,
+    #4a90e2,
+    #ef7a35
+  );
+}
+
+.genshin-title {
+  font-family: "HYWenHei", "Spectral", serif;
+  font-weight: bold;
+  background: var(--genshin-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.genshin-border {
+  border-image: var(--genshin-gradient) 1;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.genshin-card {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-top: 2px solid #f9a825;
+  backdrop-filter: blur(10px);
+}

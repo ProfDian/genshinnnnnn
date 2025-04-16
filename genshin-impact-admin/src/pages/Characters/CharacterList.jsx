@@ -1,18 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
-import {
-  FiPlus,
-  FiEdit,
-  FiTrash2,
-  FiEye,
-  FiSearch,
-  FiFilter,
-} from "react-icons/fi";
+import { FiPlus, FiEdit, FiEye, FiSearch, FiFilter, FiX } from "react-icons/fi";
 import Layout from "../../components/Layout";
 import Table from "../../components/Table";
-import ConfirmModal from "../../components/Modals/ConfirmModal";
-import characterService from "../../services/characterService";
+import {
+  characterService,
+  referenceDataService,
+  regionService,
+} from "../../services";
 
 const CharacterList = () => {
   const [characters, setCharacters] = useState([]);
@@ -34,11 +30,6 @@ const CharacterList = () => {
   const [regions, setRegions] = useState([]);
   const [rarities, setRarities] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
-  const [deleteModal, setDeleteModal] = useState({
-    isOpen: false,
-    characterId: null,
-    characterName: "",
-  });
 
   // Fetch characters
   const fetchCharacters = async (page = 1) => {
@@ -54,7 +45,6 @@ const CharacterList = () => {
       };
 
       const data = await characterService.getCharacters(params);
-      console.log(data.characters);
       setCharacters(data.characters);
       setPagination(data.pagination);
     } catch (error) {
@@ -68,51 +58,28 @@ const CharacterList = () => {
   // Fetch filter options
   const fetchFilterOptions = async () => {
     try {
-      // In a real application, you would have API endpoints for these
-      // For now, let's simulate with mock data
-      setElements([
-        { id: 1, elementName: "Pyro", elementColor: "#f44336" },
-        { id: 2, elementName: "Hydro", elementColor: "#2196f3" },
-        { id: 3, elementName: "Anemo", elementColor: "#4caf50" },
-        { id: 4, elementName: "Electro", elementColor: "#9c27b0" },
-        { id: 5, elementName: "Dendro", elementColor: "#8bc34a" },
-        { id: 6, elementName: "Cryo", elementColor: "#00bcd4" },
-        { id: 7, elementName: "Geo", elementColor: "#ff9800" },
-      ]);
+      // Fetch all reference data in parallel
+      const [elementsData, weaponTypesData, regionsData, raritiesData] =
+        await Promise.all([
+          referenceDataService.getAllElements(),
+          referenceDataService.getAllWeaponTypes(),
+          regionService.getAllRegions(),
+          referenceDataService.getAllRarities(),
+        ]);
 
-      setWeaponTypes([
-        { id: 1, weaponTypeName: "Sword" },
-        { id: 2, weaponTypeName: "Claymore" },
-        { id: 3, weaponTypeName: "Polearm" },
-        { id: 4, weaponTypeName: "Catalyst" },
-        { id: 5, weaponTypeName: "Bow" },
-      ]);
-
-      setRegions([
-        { id: 1, regionName: "Mondstadt" },
-        { id: 2, regionName: "Liyue" },
-        { id: 3, regionName: "Inazuma" },
-        { id: 4, regionName: "Sumeru" },
-        { id: 5, regionName: "Fontaine" },
-        { id: 6, regionName: "Natlan" },
-      ]);
-
-      setRarities([
-        { id: 1, rarityValue: 1, rarityColor: "#a256e1" },
-        { id: 2, rarityValue: 2, rarityColor: "#bd6932" },
-        { id: 3, rarityValue: 3, rarityColor: "#5f8ee6" },
-        { id: 4, rarityValue: 4, rarityColor: "#5d9953" },
-        { id: 5, rarityValue: 5, rarityColor: "#6e7179" },
-      ]);
+      setElements(elementsData);
+      setWeaponTypes(weaponTypesData);
+      setRegions(regionsData);
+      setRarities(raritiesData);
     } catch (error) {
       console.error("Error fetching filter options:", error);
+      toast.error("Failed to load filter options");
     }
   };
 
   // Initial load
   useEffect(() => {
-    fetchCharacters();
-    fetchFilterOptions();
+    Promise.all([fetchCharacters(), fetchFilterOptions()]);
   }, []);
 
   // Fetch when search or filters change
@@ -151,37 +118,55 @@ const CharacterList = () => {
     setSearchTerm("");
   };
 
-  // Open delete confirmation modal
-  const openDeleteModal = (character) => {
-    setDeleteModal({
-      isOpen: true,
-      characterId: character.id,
-      characterName: character.name,
-    });
-  };
+  // Helper to get element badge styling
+  const getElementStyle = (element) => {
+    if (!element) return {};
 
-  // Close delete confirmation modal
-  const closeDeleteModal = () => {
-    setDeleteModal({
-      isOpen: false,
-      characterId: null,
-      characterName: "",
-    });
-  };
+    // Base styles
+    const style = {
+      background: `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)`,
+      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+      border: "1px solid rgba(0,0,0,0.1)",
+      backdropFilter: "blur(4px)",
+      padding: "4px 8px",
+      borderRadius: "4px",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+    };
 
-  // Handle character deletion
-  const handleDeleteCharacter = async () => {
-    try {
-      await characterService.deleteCharacter(deleteModal.characterId);
-      toast.success(
-        `Character ${deleteModal.characterName} deleted successfully`
-      );
-      fetchCharacters(pagination.currentPage); // Refresh the list
-      closeDeleteModal();
-    } catch (error) {
-      console.error("Error deleting character:", error);
-      toast.error("Failed to delete character");
+    // Add element-specific styles if element has a color
+    if (element.elementColor) {
+      style.border = `1px solid ${element.elementColor}`;
+      style.background = `linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)`;
+      style.boxShadow = `0 2px 6px rgba(0,0,0,0.1), 0 0 0 1px ${element.elementColor}`;
     }
+
+    return style;
+  };
+
+  // Helper to get rarity stars with color
+  const getRarityStars = (rarity) => {
+    if (!rarity) return <span className="text-gray-400">-</span>;
+
+    // Use rarity color if available, fallback to default
+    const color = rarity.rarityColor || "#FFD700";
+
+    return (
+      <div
+        className="flex items-center px-2 py-1 rounded-md"
+        style={{
+          background: `linear-gradient(to right, ${color}15, ${color}25)`,
+          border: `1px solid ${color}50`,
+        }}
+      >
+        {[...Array(rarity.rarityValue)].map((_, index) => (
+          <span key={index} style={{ color: color }}>
+            ★
+          </span>
+        ))}
+      </div>
+    );
   };
 
   // Table columns
@@ -198,15 +183,51 @@ const CharacterList = () => {
       sortable: true,
       render: (character) => (
         <div className="flex items-center">
-          {character.icon && (
-            <img
-              src={character.icon}
-              alt={character.name}
-              className="w-10 h-10 rounded-full mr-3 object-cover"
-            />
+          {character.icon ? (
+            <div
+              className="relative mr-3 rounded-lg overflow-hidden"
+              style={{
+                padding: "3px",
+                background: character.rarity
+                  ? `${character.rarity.rarityColor}`
+                  : "#cccccc",
+                boxShadow: "0 3px 6px rgba(0,0,0,0.16)",
+                width: "48px",
+                height: "48px",
+              }}
+            >
+              <img
+                src={character.icon}
+                alt={character.name}
+                className="w-full h-full object-cover rounded"
+              />
+              {/* Element icon indicator in corner */}
+              {character.element && character.element.elementIcon && (
+                <div className="absolute top-0 right-0 w-4 h-4">
+                  <img
+                    src={character.element.elementIcon}
+                    alt={character.element.elementName}
+                    className="w-full h-full"
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div
+              className="relative mr-3 rounded-lg overflow-hidden flex items-center justify-center text-white font-bold"
+              style={{
+                width: "48px",
+                height: "48px",
+                background: character.rarity
+                  ? `${character.rarity.rarityColor}`
+                  : "#cccccc",
+              }}
+            >
+              {character.name.charAt(0)}
+            </div>
           )}
           <div>
-            <div className="font-medium">{character.name}</div>
+            <div className="font-medium text-gray-800">{character.name}</div>
             {character.title && (
               <div className="text-xs text-gray-500">{character.title}</div>
             )}
@@ -221,9 +242,16 @@ const CharacterList = () => {
         <div>
           {character.element ? (
             <span
-              className="inline-block px-2 py-1 rounded text-xs text-white"
-              style={{ backgroundColor: character.element.elementColor }}
+              style={getElementStyle(character.element)}
+              className="text-sm font-medium text-gray-800"
             >
+              {character.element.elementIcon && (
+                <img
+                  src={character.element.elementIcon}
+                  alt={character.element.elementName}
+                  className="w-5 h-5"
+                />
+              )}
               {character.element.elementName}
             </span>
           ) : (
@@ -236,21 +264,23 @@ const CharacterList = () => {
       key: "weaponType",
       title: "Weapon",
       render: (character) => (
-        <div>{character.weaponType?.weaponTypeName || "-"}</div>
-      ),
-    },
-    {
-      key: "rarity",
-      title: "Rarity",
-      render: (character) => (
         <div>
-          {character.rarity ? (
-            <div className="flex">
-              {[...Array(character.rarity.rarityValue)].map((_, index) => (
-                <span key={index} className="text-yellow-500">
-                  ★
+          {character.weaponType ? (
+            <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-200">
+              {character.weaponType.weaponTypeIcon ? (
+                <img
+                  src={character.weaponType.weaponTypeIcon}
+                  alt={character.weaponType.weaponTypeName}
+                  className="w-5 h-5"
+                />
+              ) : (
+                <span className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-xs">
+                  {character.weaponType.weaponTypeName.charAt(0)}
                 </span>
-              ))}
+              )}
+              <span className="text-sm">
+                {character.weaponType.weaponTypeName}
+              </span>
             </div>
           ) : (
             <span className="text-gray-400">-</span>
@@ -259,37 +289,56 @@ const CharacterList = () => {
       ),
     },
     {
+      key: "rarity",
+      title: "Rarity",
+      render: (character) => getRarityStars(character.rarity),
+    },
+    {
       key: "region",
       title: "Region",
-      render: (character) => <div>{character.region?.regionName || "-"}</div>,
+      render: (character) => (
+        <div>
+          {character.region ? (
+            <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-md border border-gray-200">
+              {character.region.regionIcon ? (
+                <img
+                  src={character.region.regionIcon}
+                  alt={character.region.regionName}
+                  className="w-5 h-5"
+                />
+              ) : (
+                <span className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center text-xs">
+                  {character.region.regionName.charAt(0)}
+                </span>
+              )}
+              <span className="text-sm">{character.region.regionName}</span>
+            </div>
+          ) : (
+            <span className="text-gray-400">-</span>
+          )}
+        </div>
+      ),
     },
     {
       key: "actions",
       title: "Actions",
-      width: "150px",
+      width: "120px",
       render: (character) => (
         <div className="flex space-x-2">
           <Link
             to={`/characters/${character.id}`}
-            className="p-1 text-gray-600 hover:text-primary"
+            className="p-2 text-gray-600 hover:text-primary bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             title="View"
           >
             <FiEye size={18} />
           </Link>
           <Link
             to={`/characters/edit/${character.id}`}
-            className="p-1 text-gray-600 hover:text-primary"
+            className="p-2 text-gray-600 hover:text-primary bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
             title="Edit"
           >
             <FiEdit size={18} />
           </Link>
-          <button
-            onClick={() => openDeleteModal(character)}
-            className="p-1 text-gray-600 hover:text-error"
-            title="Delete"
-          >
-            <FiTrash2 size={18} />
-          </button>
         </div>
       ),
     },
@@ -299,7 +348,9 @@ const CharacterList = () => {
     <Layout title="Characters">
       <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
         <div>
-          <h1 className="text-2xl font-bold">Character Management</h1>
+          <h1 className="text-2xl font-bold genshin-title">
+            Character Management
+          </h1>
           <p className="text-gray-600">Manage all Genshin Impact characters</p>
         </div>
 
@@ -312,140 +363,146 @@ const CharacterList = () => {
         </Link>
       </div>
 
-      <div className="card mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-          <div className="relative flex-grow max-w-md mb-4 md:mb-0">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FiSearch className="text-gray-400" />
+      <div className="card mb-6 overflow-hidden border border-gray-200">
+        <div className="p-4 bg-white">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+            <div className="relative flex-grow max-w-md mb-4 md:mb-0">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiSearch className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by name or title..."
+                className="form-input pl-10 w-full border-gray-300 focus:border-primary focus:ring focus:ring-primary-light focus:ring-opacity-50 rounded-md shadow-sm"
+                value={searchTerm}
+                onChange={handleSearchChange}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={16} />
+                </button>
+              )}
             </div>
-            <input
-              type="text"
-              placeholder="Search by name or title..."
-              className="form-input pl-10 w-full"
-              value={searchTerm}
-              onChange={handleSearchChange}
-            />
+
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`btn ${
+                showFilters ? "btn-secondary" : "btn-outline"
+              } flex items-center`}
+            >
+              <FiFilter className="mr-2" />
+              {showFilters ? "Hide Filters" : "Show Filters"}
+            </button>
           </div>
 
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="btn btn-outline flex items-center"
-          >
-            <FiFilter className="mr-2" />
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </button>
+          {showFilters && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200 shadow-inner">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label htmlFor="elementId" className="form-label">
+                    Element
+                  </label>
+                  <select
+                    id="elementId"
+                    name="elementId"
+                    className="form-input"
+                    value={filters.elementId}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="">All Elements</option>
+                    {elements.map((element) => (
+                      <option key={element.id} value={element.id}>
+                        {element.elementName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="weaponTypeId" className="form-label">
+                    Weapon Type
+                  </label>
+                  <select
+                    id="weaponTypeId"
+                    name="weaponTypeId"
+                    className="form-input"
+                    value={filters.weaponTypeId}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="">All Weapon Types</option>
+                    {weaponTypes.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.weaponTypeName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="regionId" className="form-label">
+                    Region
+                  </label>
+                  <select
+                    id="regionId"
+                    name="regionId"
+                    className="form-input"
+                    value={filters.regionId}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="">All Regions</option>
+                    {regions.map((region) => (
+                      <option key={region.id} value={region.id}>
+                        {region.regionName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="rarityId" className="form-label">
+                    Rarity
+                  </label>
+                  <select
+                    id="rarityId"
+                    name="rarityId"
+                    className="form-input"
+                    value={filters.rarityId}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="">All Rarities</option>
+                    {rarities.map((rarity) => (
+                      <option key={rarity.id} value={rarity.id}>
+                        {rarity.rarityValue} Star
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={resetFilters}
+                  className="btn btn-outline flex items-center"
+                >
+                  <FiX className="mr-2" />
+                  Reset Filters
+                </button>
+              </div>
+            </div>
+          )}
+
+          <Table
+            columns={columns}
+            data={characters}
+            pagination={pagination}
+            onPageChange={handlePageChange}
+            isLoading={loading}
+          />
         </div>
-
-        {showFilters && (
-          <div className="bg-gray-50 p-4 rounded mb-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label htmlFor="elementId" className="form-label">
-                  Element
-                </label>
-                <select
-                  id="elementId"
-                  name="elementId"
-                  className="form-input"
-                  value={filters.elementId}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">All Elements</option>
-                  {elements.map((element) => (
-                    <option key={element.id} value={element.id}>
-                      {element.elementName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="weaponTypeId" className="form-label">
-                  Weapon Type
-                </label>
-                <select
-                  id="weaponTypeId"
-                  name="weaponTypeId"
-                  className="form-input"
-                  value={filters.weaponTypeId}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">All Weapon Types</option>
-                  {weaponTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.weaponTypeName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="regionId" className="form-label">
-                  Region
-                </label>
-                <select
-                  id="regionId"
-                  name="regionId"
-                  className="form-input"
-                  value={filters.regionId}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">All Regions</option>
-                  {regions.map((region) => (
-                    <option key={region.id} value={region.id}>
-                      {region.regionName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="rarityId" className="form-label">
-                  Rarity
-                </label>
-                <select
-                  id="rarityId"
-                  name="rarityId"
-                  className="form-input"
-                  value={filters.rarityId}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">All Rarities</option>
-                  {rarities.map((rarity) => (
-                    <option key={rarity.id} value={rarity.id}>
-                      {rarity.rarityValue} Star
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <button onClick={resetFilters} className="btn btn-outline">
-                Reset Filters
-              </button>
-            </div>
-          </div>
-        )}
-
-        <Table
-          columns={columns}
-          data={characters}
-          pagination={pagination}
-          onPageChange={handlePageChange}
-          isLoading={loading}
-        />
       </div>
-
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={closeDeleteModal}
-        onConfirm={handleDeleteCharacter}
-        title="Delete Character"
-        message={`Are you sure you want to delete "${deleteModal.characterName}"? This action cannot be undone.`}
-        confirmText="Delete"
-        type="danger"
-      />
     </Layout>
   );
 };

@@ -1,61 +1,122 @@
-import { useState, useEffect } from "react";
-import Sidebar from "./Sidebar";
-import { FiBell, FiSearch } from "react-icons/fi";
+import React from "react";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
-const Layout = ({ children, title }) => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Check if screen size is mobile
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-
-    // Initial check
-    checkScreenSize();
-
-    // Add event listener
-    window.addEventListener("resize", checkScreenSize);
-
-    // Clean up
-    return () => window.removeEventListener("resize", checkScreenSize);
-  }, []);
+const Table = ({ columns, data, pagination, onPageChange, isLoading }) => {
+  // Handle empty data state
+  if (!isLoading && (!data || data.length === 0)) {
+    return (
+      <div className="bg-white rounded-md p-8 text-center text-gray-500">
+        No data available
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar />
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-gray-50 border-b border-gray-200">
+            {columns.map((column) => (
+              <th
+                key={column.key}
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                style={{ width: column.width }}
+              >
+                {column.title}
+                {column.sortable && (
+                  <span className="ml-1 cursor-pointer">↕</span>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {isLoading
+            ? // Loading state rows
+              Array(5)
+                .fill(0)
+                .map((_, index) => (
+                  <tr
+                    key={`loader-${index}`}
+                    className="border-b border-gray-200"
+                  >
+                    {columns.map((column) => (
+                      <td
+                        key={`loader-cell-${column.key}-${index}`}
+                        className="px-4 py-3"
+                      >
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                    ))}
+                  </tr>
+                ))
+            : // Data rows
+              data.map((item, index) => (
+                <tr
+                  key={item.id || index}
+                  className={`border-b border-gray-200 hover:bg-gray-50 ${
+                    index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                  }`}
+                >
+                  {columns.map((column) => (
+                    <td key={`${item.id}-${column.key}`} className="px-4 py-3">
+                      {column.render
+                        ? column.render(item)
+                        : item[column.key] || "-"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+        </tbody>
+      </table>
 
-      <div className={`${isMobile ? "pt-16" : ""} lg:ml-64 min-h-screen`}>
-        <header className="bg-surface shadow-sm py-4 px-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-bold">{title}</h1>
-
-            <div className="flex items-center">
-              <div className="relative mr-4 hidden md:block">
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="form-input pl-10 py-1"
-                />
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              </div>
-
-              <button className="p-2 rounded-full hover:bg-gray-100 text-gray-600 relative">
-                <FiBell size={20} />
-                <span className="absolute top-1 right-1 bg-error w-2 h-2 rounded-full"></span>
-              </button>
-            </div>
+      {/* Pagination */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex justify-between items-center px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+          <div className="hidden sm:block">
+            <p className="text-sm text-gray-700">
+              Showing{" "}
+              <span className="font-medium">
+                {(pagination.currentPage - 1) * 10 + 1}
+              </span>{" "}
+              to{" "}
+              <span className="font-medium">
+                {Math.min(pagination.currentPage * 10, pagination.totalItems)}
+              </span>{" "}
+              of <span className="font-medium">{pagination.totalItems}</span>{" "}
+              results
+            </p>
           </div>
-        </header>
-
-        <main className="p-6">{children}</main>
-
-        <footer className="py-4 px-6 border-t border-gray-200 text-center text-gray-500 text-sm">
-          Genshin Impact Admin Panel &copy; {new Date().getFullYear()}
-        </footer>
-      </div>
+          <div className="flex justify-between sm:justify-end items-center">
+            <button
+              onClick={() => onPageChange(pagination.currentPage - 1)}
+              disabled={pagination.currentPage === 1}
+              className={`relative inline-flex items-center px-3 py-2 rounded-md text-sm font-medium mr-2 ${
+                pagination.currentPage === 1
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              <FiChevronLeft className="w-4 h-4 mr-1" />
+              Previous
+            </button>
+            <button
+              onClick={() => onPageChange(pagination.currentPage + 1)}
+              disabled={pagination.currentPage === pagination.totalPages}
+              className={`relative inline-flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                pagination.currentPage === pagination.totalPages
+                  ? "text-gray-300 cursor-not-allowed"
+                  : "text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Next
+              <FiChevronRight className="w-4 h-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Layout;
+export default Table;

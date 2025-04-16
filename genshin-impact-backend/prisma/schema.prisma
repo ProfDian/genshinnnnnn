@@ -52,12 +52,13 @@ model Region {
 }
 
 model RegionArea {
-  id              Int     @id @default(autoincrement())
-  regionId        Int     @map("region_id")
-  areaName        String  @map("area_name") @db.VarChar(100)
-  areaDescription String? @map("area_description") @db.Text
-  areaImage       String? @map("area_image") @db.VarChar(255)
-  region          Region  @relation(fields: [regionId], references: [id])
+  id              Int       @id @default(autoincrement())
+  regionId        Int       @map("region_id")
+  areaName        String    @map("area_name") @db.VarChar(100)
+  areaDescription String?   @map("area_description") @db.Text
+  areaImage       String?   @map("area_image") @db.VarChar(255)
+  deletedAt       DateTime? @map("deleted_at") @db.DateTime(0)
+  region          Region    @relation(fields: [regionId], references: [id])
 
   @@index([regionId], map: "region_areas_region_id_fkey")
   @@map("region_areas")

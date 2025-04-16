@@ -1,10 +1,28 @@
+@import "./assets/styles/fonts.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-family: "HYWenHei", "Spectral", ui-sans-serif, system-ui, sans-serif;
+  }
+
   body {
     @apply bg-background text-gray-800;
+    font-family: "HYWenHei", "Spectral", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.01em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "HYWenHei", "Spectral", serif;
+    letter-spacing: 0.02em;
   }
 
   h1 {
@@ -23,6 +41,7 @@
 @layer components {
   .btn {
     @apply px-4 py-2 rounded font-medium transition-colors;
+    font-family: "HYWenHei", "Spectral", ui-sans-serif, system-ui, sans-serif;
   }
 
   .btn-primary {
@@ -83,5 +102,41 @@
 
   .table-cell {
     @apply px-6 py-4 whitespace-nowrap text-sm;
+  }
+
+  /* Komponen Genshin-Styled */
+  .genshin-header {
+    @apply text-2xl font-bold mb-4;
+    font-family: "HYWenHei", "Spectral", serif;
+    color: #006d77;
+    border-bottom: 2px solid;
+    border-image: var(--genshin-gradient) 1;
+    padding-bottom: 0.5rem;
+  }
+
+  .element-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+  }
+
+  .element-badge-geo {
+    @apply bg-geo bg-opacity-20 text-geo border border-geo border-opacity-40;
+  }
+  .element-badge-anemo {
+    @apply bg-anemo bg-opacity-20 text-anemo border border-anemo border-opacity-40;
+  }
+  .element-badge-cryo {
+    @apply bg-cryo bg-opacity-20 text-cryo border border-cryo border-opacity-40;
+  }
+  .element-badge-dendro {
+    @apply bg-dendro bg-opacity-20 text-dendro border border-dendro border-opacity-40;
+  }
+  .element-badge-electro {
+    @apply bg-electro bg-opacity-20 text-electro border border-electro border-opacity-40;
+  }
+  .element-badge-hydro {
+    @apply bg-hydro bg-opacity-20 text-hydro border border-hydro border-opacity-40;
+  }
+  .element-badge-pyro {
+    @apply bg-pyro bg-opacity-20 text-pyro border border-pyro border-opacity-40;
   }
 }

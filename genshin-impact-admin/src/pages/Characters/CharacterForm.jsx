@@ -4,7 +4,11 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { FiSave, FiX, FiUpload } from "react-icons/fi";
 import Layout from "../../components/Layout";
-import characterService from "../../services/characterService";
+import {
+  characterService,
+  referenceDataService,
+  regionService,
+} from "../../services";
 
 const CharacterForm = () => {
   const { id } = useParams();
@@ -36,37 +40,19 @@ const CharacterForm = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Mock data for dropdowns - in a real app, you would fetch these from the API
-        setElements([
-          { id: 1, elementName: "Pyro", elementColor: "#f44336" },
-          { id: 2, elementName: "Hydro", elementColor: "#2196f3" },
-          { id: 3, elementName: "Anemo", elementColor: "#4caf50" },
-          { id: 4, elementName: "Electro", elementColor: "#9c27b0" },
-          { id: 5, elementName: "Dendro", elementColor: "#8bc34a" },
-          { id: 6, elementName: "Cryo", elementColor: "#00bcd4" },
-          { id: 7, elementName: "Geo", elementColor: "#ff9800" },
-        ]);
+        // Fetch all reference data in parallel
+        const [elementsData, weaponTypesData, regionsData, raritiesData] =
+          await Promise.all([
+            referenceDataService.getAllElements(),
+            referenceDataService.getAllWeaponTypes(),
+            regionService.getAllRegions(),
+            referenceDataService.getAllRarities(),
+          ]);
 
-        setWeaponTypes([
-          { id: 1, weaponTypeName: "Sword" },
-          { id: 2, weaponTypeName: "Claymore" },
-          { id: 3, weaponTypeName: "Polearm" },
-          { id: 4, weaponTypeName: "Catalyst" },
-          { id: 5, weaponTypeName: "Bow" },
-        ]);
-
-        setRegions([
-          { id: 1, regionName: "Mondstadt" },
-          { id: 2, regionName: "Liyue" },
-          { id: 3, regionName: "Inazuma" },
-          { id: 4, regionName: "Sumeru" },
-          { id: 5, regionName: "Fontaine" },
-        ]);
-
-        setRarities([
-          { id: 1, rarityValue: 4, rarityColor: "#a256e1" },
-          { id: 2, rarityValue: 5, rarityColor: "#bd6932" },
-        ]);
+        setElements(elementsData);
+        setWeaponTypes(weaponTypesData);
+        setRegions(regionsData);
+        setRarities(raritiesData);
 
         // If in edit mode, fetch character data
         if (isEditMode) {
@@ -78,7 +64,11 @@ const CharacterForm = () => {
               key !== "element" &&
               key !== "weaponType" &&
               key !== "region" &&
-              key !== "rarity"
+              key !== "rarity" &&
+              key !== "stats" &&
+              key !== "talents" &&
+              key !== "passives" &&
+              key !== "constellations"
             ) {
               setValue(key, characterData[key]);
             }
@@ -374,7 +364,7 @@ const CharacterForm = () => {
 
             <div>
               <label htmlFor="native" className="form-label">
-                Native Name
+                Native/Affiliation
               </label>
               <input
                 id="native"

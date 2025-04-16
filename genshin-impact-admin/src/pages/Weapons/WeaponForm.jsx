@@ -1,3 +1,4 @@
+// WeaponForm.jsx - Update untuk menggunakan service dengan benar
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -5,6 +6,8 @@ import { toast } from "react-toastify";
 import { FiSave, FiX, FiUpload, FiPlus, FiTrash } from "react-icons/fi";
 import Layout from "../../components/Layout";
 import weaponService from "../../services/weaponService";
+import weaponStatService from "../../services/weaponStatService";
+import referenceDataService from "../../services/referenceDataService";
 
 const WeaponForm = () => {
   const { id } = useParams();
@@ -16,6 +19,7 @@ const WeaponForm = () => {
   const [weaponTypes, setWeaponTypes] = useState([]);
   const [rarities, setRarities] = useState([]);
   const [substatTypes, setSubstatTypes] = useState([]);
+  const [previewStats, setPreviewStats] = useState([]);
 
   // For passives and refinements
   const [passives, setPassives] = useState([
@@ -37,8 +41,8 @@ const WeaponForm = () => {
     register,
     handleSubmit,
     setValue,
-    formState: { errors },
     watch,
+    formState: { errors },
   } = useForm({
     defaultValues: {
       weapon: {
@@ -57,30 +61,27 @@ const WeaponForm = () => {
     },
   });
 
-  // Get weapon type from form
-  const selectedWeaponType = watch("stats.weaponType");
+  // Watch form values for preview stats
+  const watchWeaponType = watch("stats.weaponType");
+  const watchSubstatType = watch("stats.substatType");
+  const watchSubstatValue = watch("stats.substatValue");
 
   // Fetch data for dropdowns and weapon data if in edit mode
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Get weapon types
-        const weaponTypesData = await weaponService.getWeaponTypes();
+        // Get weapon types from weaponStatService
+        const weaponTypesData = await weaponStatService.getWeaponTypes();
         setWeaponTypes(weaponTypesData);
 
-        // Get substat types
-        const substatTypesData = await weaponService.getSubstatTypes();
+        // Get substat types from weaponStatService
+        const substatTypesData = await weaponStatService.getSubstatTypes();
         setSubstatTypes(substatTypesData);
 
-        // Mock data for rarities - in a real app, you would fetch these from the API
-        setRarities([
-          { id: 1, rarityValue: 1, rarityColor: "#6e7179" },
-          { id: 2, rarityValue: 2, rarityColor: "#5d9953" },
-          { id: 3, rarityValue: 3, rarityColor: "#5f8ee6" },
-          { id: 4, rarityValue: 4, rarityColor: "#a256e1" },
-          { id: 5, rarityValue: 5, rarityColor: "#bd6932" },
-        ]);
+        // Get rarities from referenceDataService
+        const raritiesData = await referenceDataService.getAllRarities();
+        setRarities(raritiesData);
 
         // If in edit mode, fetch weapon data
         if (isEditMode) {
@@ -110,7 +111,7 @@ const WeaponForm = () => {
           }
 
           // Get weapon stats for this weapon
-          const statsData = await weaponService.getWeaponStats(id);
+          const statsData = await weaponStatService.getWeaponStats(id);
 
           if (statsData.length > 0) {
             // Find base stat (level 1, ascension 0)
@@ -147,42 +148,92 @@ const WeaponForm = () => {
     fetchData();
   }, [id, isEditMode, setValue]);
 
+  // Update preview stats when weapon type or substat changes
+  useEffect(() => {
+    const generatePreviewStats = async () => {
+      if (watchWeaponType) {
+        try {
+          const previewData = {
+            weaponType: watchWeaponType,
+            substatType: watchSubstatType || null,
+            substatValue: watchSubstatValue
+              ? parseFloat(watchSubstatValue)
+              : null,
+          };
+
+          const data = await weaponStatService.previewWeaponStats(previewData);
+          setPreviewStats(data);
+        } catch (error) {
+          console.error("Error generating preview stats:", error);
+        }
+      } else {
+        setPreviewStats([]);
+      }
+    };
+
+    generatePreviewStats();
+  }, [watchWeaponType, watchSubstatType, watchSubstatValue]);
+
   // Handle form submission
   const onSubmit = async (data) => {
     setSubmitting(true);
     try {
-      // Prepare weapon data
-      const weaponData = {
-        weapon: {
-          ...data.weapon,
-          weaponTypeId: parseInt(data.weapon.weaponTypeId),
-          rarityId: parseInt(data.weapon.rarityId),
-        },
-        stats: {
-          ...data.stats,
-        },
-        passives,
-        refinements,
-      };
+      // Create FormData for file upload
+      const formData = new FormData();
 
-      // Add icon to weapon data if it exists
+      // Add weapon basic data
+      Object.keys(data.weapon).forEach((key) => {
+        formData.append(`weapon[${key}]`, data.weapon[key]);
+      });
+
+      // Add stats data
+      if (data.stats.weaponType) {
+        Object.keys(data.stats).forEach((key) => {
+          if (data.stats[key]) {
+            formData.append(`stats[${key}]`, data.stats[key]);
+          }
+        });
+      }
+
+      // Add passives
+      passives.forEach((passive, index) => {
+        formData.append(`passives[${index}][passiveName]`, passive.passiveName);
+        formData.append(
+          `passives[${index}][passiveDescription]`,
+          passive.passiveDescription
+        );
+      });
+
+      // Add refinements
+      refinements.forEach((refinement, index) => {
+        formData.append(
+          `refinements[${index}][refinementLevel]`,
+          refinement.refinementLevel
+        );
+        formData.append(
+          `refinements[${index}][refinementDescription]`,
+          refinement.refinementDescription
+        );
+      });
+
+      // Add icon file if provided
       if (data.icon && data.icon.length > 0) {
-        weaponData.weapon.icon = data.icon[0];
+        formData.append("icon", data.icon[0]);
       }
 
       if (isEditMode) {
         // Update weapon
-        await weaponService.updateWeapon(id, weaponData.weapon);
+        await weaponService.updateWeapon(id, formData);
 
         // Update stats if they were provided
-        if (weaponData.stats.weaponType) {
-          await weaponService.addWeaponStats(id, weaponData.stats);
+        if (data.stats.weaponType) {
+          await weaponStatService.addWeaponStats(id, data.stats);
         }
 
         toast.success("Weapon updated successfully");
       } else {
-        // Create weapon with all data
-        const result = await weaponService.createWeapon(weaponData);
+        // Create weapon
+        const result = await weaponService.createWeapon(formData);
         toast.success("Weapon created successfully");
       }
 
@@ -274,36 +325,6 @@ const WeaponForm = () => {
               />
               {errors.weapon?.name && (
                 <p className="form-error">{errors.weapon.name.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="weapon.weaponTypeId" className="form-label">
-                Weapon Type
-              </label>
-              <select
-                id="weapon.weaponTypeId"
-                className={`form-input ${
-                  errors.weapon?.weaponTypeId ? "border-error" : ""
-                }`}
-                {...register("weapon.weaponTypeId", {
-                  required: "Weapon type is required",
-                })}
-              >
-                <option value="">Select Weapon Type</option>
-                {weaponTypes.map((type) => (
-                  <option
-                    key={type.id || type.value}
-                    value={type.id || type.value}
-                  >
-                    {type.weaponTypeName || type.label}
-                  </option>
-                ))}
-              </select>
-              {errors.weapon?.weaponTypeId && (
-                <p className="form-error">
-                  {errors.weapon.weaponTypeId.message}
-                </p>
               )}
             </div>
 
@@ -412,7 +433,7 @@ const WeaponForm = () => {
                 id="stats.substatType"
                 className="form-input"
                 {...register("stats.substatType")}
-                disabled={!selectedWeaponType}
+                disabled={!watchWeaponType}
               >
                 <option value="">Select Substat Type</option>
                 {substatTypes.map((type) => (
@@ -434,13 +455,56 @@ const WeaponForm = () => {
                 className="form-input"
                 placeholder="e.g. 4.8"
                 {...register("stats.substatValue")}
-                disabled={!selectedWeaponType}
+                disabled={!watchWeaponType || !watchSubstatType}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Value at level 1 (e.g. 4.8% for CRIT Rate, 24 for EM).
               </p>
             </div>
           </div>
+
+          {/* Preview Stats Section */}
+          {previewStats.length > 0 && (
+            <div className="mt-6">
+              <h3 className="font-semibold text-md mb-2">Stat Preview</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="py-2 px-3 text-xs text-left">Level</th>
+                      <th className="py-2 px-3 text-xs text-left">Ascension</th>
+                      <th className="py-2 px-3 text-xs text-left">Base ATK</th>
+                      {watchSubstatType && (
+                        <th className="py-2 px-3 text-xs text-left">
+                          {watchSubstatType
+                            .replace(/_/g, " ")
+                            .replace(/PERCENT/g, "%")}
+                        </th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewStats.map((stat, index) => (
+                      <tr
+                        key={index}
+                        className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                      >
+                        <td className="py-1 px-3 text-xs">{stat.level}</td>
+                        <td className="py-1 px-3 text-xs">{stat.ascension}</td>
+                        <td className="py-1 px-3 text-xs">{stat.base_atk}</td>
+                        {watchSubstatType && (
+                          <td className="py-1 px-3 text-xs">
+                            {stat.sub_stat_value}
+                            {watchSubstatType.includes("PERCENT") ? "%" : ""}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card">

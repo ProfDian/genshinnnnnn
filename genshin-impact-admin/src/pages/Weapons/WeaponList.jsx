@@ -13,6 +13,7 @@ import Layout from "../../components/Layout";
 import Table from "../../components/Table";
 import ConfirmModal from "../../components/Modals/ConfirmModal";
 import weaponService from "../../services/weaponService";
+import referenceDataService from "../../services/referenceDataService";
 
 const WeaponList = () => {
   const [weapons, setWeapons] = useState([]);
@@ -49,7 +50,7 @@ const WeaponList = () => {
         ),
       };
 
-      const data = await weaponService.getWeapons(params);
+      const data = await weaponService.getAllWeapons(params);
       setWeapons(data.weapons);
       setPagination(data.pagination);
     } catch (error) {
@@ -63,18 +64,13 @@ const WeaponList = () => {
   // Fetch filter options
   const fetchFilterOptions = async () => {
     try {
-      // Fetch weapon types
-      const weaponTypesData = await weaponService.getWeaponTypes();
+      // Fetch weapon types dari referenceDataService
+      const weaponTypesData = await referenceDataService.getAllWeaponTypes();
       setWeaponTypes(weaponTypesData);
 
-      // For rarities, we'll use mock data (you would typically fetch this from an API)
-      setRarities([
-        { id: 1, rarityValue: 1, rarityColor: "#6e7179" },
-        { id: 2, rarityValue: 2, rarityColor: "#5d9953" },
-        { id: 3, rarityValue: 3, rarityColor: "#5f8ee6" },
-        { id: 4, rarityValue: 4, rarityColor: "#a256e1" },
-        { id: 5, rarityValue: 5, rarityColor: "#bd6932" },
-      ]);
+      // Fetch rarities dari referenceDataService
+      const raritiesData = await referenceDataService.getAllRarities();
+      setRarities(raritiesData);
     } catch (error) {
       console.error("Error fetching filter options:", error);
     }

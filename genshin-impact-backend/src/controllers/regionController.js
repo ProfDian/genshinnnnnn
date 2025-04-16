@@ -1,4 +1,4 @@
-const { PrismaClient, Prisma } = require("@prisma/client");
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 // Get all regions
@@ -6,7 +6,11 @@ const getAllRegions = async (req, res) => {
   try {
     const regions = await prisma.region.findMany({
       include: {
-        areas: true,
+        areas: {
+          where: {
+            deletedAt: null,
+          },
+        },
         features: true,
       },
     });
@@ -26,7 +30,11 @@ const getRegionById = async (req, res) => {
     const region = await prisma.region.findUnique({
       where: { id: parseInt(id) },
       include: {
-        areas: true,
+        areas: {
+          where: {
+            deletedAt: null,
+          },
+        },
         features: true,
       },
     });
@@ -59,6 +67,7 @@ async function getCharactersByRegion(req, res) {
       LEFT JOIN weapon_types wt ON c.weapon_type_id = wt.id
       LEFT JOIN rarities r ON c.rarity_id = r.id
       WHERE c.region_id = ${regionId}
+      AND c.deleted_at IS NULL
     `;
 
     res.json(characters);
@@ -224,6 +233,158 @@ const addRegionFeature = async (req, res) => {
   }
 };
 
+// Delete region area (admin only)
+const deleteRegionArea = async (req, res) => {
+  try {
+    const { areaId } = req.params;
+    const { permanent } = req.query;
+
+    if (permanent === "true") {
+      // Hard delete
+      await prisma.regionArea.delete({
+        where: { id: parseInt(areaId) },
+      });
+
+      res.status(200).json({
+        message: "Region area permanently deleted",
+      });
+    } else {
+      // Soft delete
+      await prisma.regionArea.update({
+        where: { id: parseInt(areaId) },
+        data: { deletedAt: new Date() },
+      });
+
+      res.status(200).json({
+        message: "Region area soft deleted",
+      });
+    }
+  } catch (error) {
+    console.error("Delete region area error:", error);
+    res.status(500).json({ message: "Error deleting region area" });
+  }
+};
+
+// Get all deleted region areas (admin only)
+const getDeletedRegionAreas = async (req, res) => {
+  try {
+    const deletedAreas = await prisma.regionArea.findMany({
+      where: {
+        deletedAt: {
+          not: null,
+        },
+      },
+      include: {
+        region: {
+          select: {
+            id: true,
+            regionName: true,
+          },
+        },
+      },
+      orderBy: {
+        deletedAt: "desc",
+      },
+    });
+
+    res.status(200).json(deletedAreas);
+  } catch (error) {
+    console.error("Get deleted areas error:", error);
+    res.status(500).json({ message: "Error fetching deleted areas" });
+  }
+};
+
+// Restore a soft-deleted region area (admin only)
+const restoreRegionArea = async (req, res) => {
+  try {
+    const { areaId } = req.params;
+
+    // Check if area exists and is soft-deleted
+    const area = await prisma.regionArea.findUnique({
+      where: { id: parseInt(areaId) },
+    });
+
+    if (!area) {
+      return res.status(404).json({ message: "Region area not found" });
+    }
+
+    if (!area.deletedAt) {
+      return res.status(400).json({ message: "Region area is not deleted" });
+    }
+
+    // Restore area by setting deletedAt to null
+    const restoredArea = await prisma.regionArea.update({
+      where: { id: parseInt(areaId) },
+      data: { deletedAt: null },
+    });
+
+    res.status(200).json({
+      message: "Region area restored successfully",
+      area: restoredArea,
+    });
+  } catch (error) {
+    console.error("Restore area error:", error);
+    res.status(500).json({ message: "Error restoring region area" });
+  }
+};
+// Update region area (admin only)
+const updateRegionArea = async (req, res) => {
+  try {
+    const { areaId } = req.params;
+    const { areaName, areaDescription } = req.body;
+
+    // Prepare update data
+    const updateData = {
+      areaName,
+      areaDescription,
+    };
+
+    // Add image URL if provided
+    if (req.body.areaImage) {
+      updateData.areaImage = req.body.areaImage;
+    }
+
+    // Update area
+    const area = await prisma.regionArea.update({
+      where: { id: parseInt(areaId) },
+      data: updateData,
+    });
+
+    res.status(200).json({
+      message: "Region area updated successfully",
+      area,
+    });
+  } catch (error) {
+    console.error("Update region area error:", error);
+    res.status(500).json({ message: "Error updating region area" });
+  }
+};
+
+// Update region feature (admin only)
+const updateRegionFeature = async (req, res) => {
+  try {
+    const { featureId } = req.params;
+    const { featureName, featureDescription } = req.body;
+
+    // Update feature
+    const feature = await prisma.regionFeature.update({
+      where: { id: parseInt(featureId) },
+      data: {
+        featureName,
+        featureDescription,
+      },
+    });
+
+    res.status(200).json({
+      message: "Region feature updated successfully",
+      feature,
+    });
+  } catch (error) {
+    console.error("Update region feature error:", error);
+    res.status(500).json({ message: "Error updating region feature" });
+  }
+};
+
 module.exports = {
   getAllRegions,
   getRegionById,
@@ -232,4 +393,9 @@ module.exports = {
   updateRegion,
   addRegionArea,
   addRegionFeature,
+  deleteRegionArea,
+  getDeletedRegionAreas,
+  restoreRegionArea,
+  updateRegionArea,
+  updateRegionFeature,
 };

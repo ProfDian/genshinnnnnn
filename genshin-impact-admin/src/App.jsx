@@ -13,10 +13,13 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import CharacterList from "./pages/Characters/CharacterList";
 import CharacterForm from "./pages/Characters/CharacterForm";
+import CharacterDetail from "./pages/Characters/CharacterDetail";
+import WeaponDetail from "./pages/Weapons/WeaponDetail";
 import WeaponList from "./pages/Weapons/WeaponList";
 import WeaponForm from "./pages/Weapons/WeaponForm";
 import RegionList from "./pages/Regions/RegionList";
 import RegionForm from "./pages/Regions/RegionForm";
+import RegionAreaTrash from "./pages/Regions/Region AreaTrash";
 import UserList from "./pages/Users/UserList";
 import NotFound from "./pages/NotFound";
 
@@ -46,7 +49,6 @@ const AppRoutes = () => {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-
         {/* Protected Routes */}
         <Route
           path="/"
@@ -64,7 +66,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-
         {/* Character Routes */}
         <Route
           path="/characters"
@@ -83,6 +84,14 @@ const AppRoutes = () => {
           }
         />
         <Route
+          path="/characters/:id"
+          element={
+            <ProtectedRoute>
+              <CharacterDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/characters/edit/:id"
           element={
             <ProtectedRoute>
@@ -90,7 +99,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-
         {/* Weapon Routes */}
         <Route
           path="/weapons"
@@ -116,7 +124,14 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/weapons/:id"
+          element={
+            <ProtectedRoute>
+              <WeaponDetail />
+            </ProtectedRoute>
+          }
+        />
         {/* Region Routes */}
         <Route
           path="/regions"
@@ -142,7 +157,14 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/regions/trash"
+          element={
+            <ProtectedRoute>
+              <RegionAreaTrash />
+            </ProtectedRoute>
+          }
+        />
         {/* User Routes */}
         <Route
           path="/users"
@@ -152,7 +174,6 @@ const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-
         {/* 404 Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>

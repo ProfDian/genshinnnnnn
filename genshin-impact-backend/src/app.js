@@ -13,6 +13,7 @@ const characterStatRoutes = require("./routes/characterStatRoutes");
 const characterSkillsRoutes = require("./routes/characterSkillsRoutes"); // Tambahkan ini
 const weaponStatRoutes = require("./routes/weaponStatRoutes"); // Tambahkan ini
 const searchRoutes = require("./routes/searchRoutes");
+const referenceDataRoutes = require("./routes/referenceDataRoutes");
 
 // Create Express app
 const app = express();
@@ -34,6 +35,7 @@ app.use("/api/stats", characterStatRoutes);
 app.use("/api/skills", characterSkillsRoutes);
 app.use("/api/weapon-stats", weaponStatRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/reference", referenceDataRoutes);
 
 // Root route
 app.get("/", (req, res) => {
