@@ -284,6 +284,227 @@ const deleteWeapon = async (req, res) => {
     res.status(500).json({ message: "Error deleting weapon" });
   }
 };
+// GET Weapon Passives
+const getWeaponPassives = async (req, res) => {
+  try {
+    const { weaponId } = req.params;
+
+    const passives = await prisma.weaponPassive.findMany({
+      where: { weaponId: parseInt(weaponId) },
+    });
+
+    res.status(200).json(passives);
+  } catch (error) {
+    console.error("Get weapon passives error:", error);
+    res.status(500).json({ message: "Error fetching weapon passives" });
+  }
+};
+
+// CREATE Weapon Passive
+const createWeaponPassive = async (req, res) => {
+  try {
+    const { weaponId } = req.params;
+    const { passiveName, passiveDescription } = req.body;
+
+    // Validate input
+    if (!passiveName) {
+      return res.status(400).json({ message: "Passive name is required" });
+    }
+
+    const passive = await prisma.weaponPassive.create({
+      data: {
+        weaponId: parseInt(weaponId),
+        passiveName,
+        passiveDescription,
+      },
+    });
+
+    res.status(201).json({
+      message: "Weapon passive added successfully",
+      passive,
+    });
+  } catch (error) {
+    console.error("Create weapon passive error:", error);
+    res.status(500).json({ message: "Error creating weapon passive" });
+  }
+};
+
+// UPDATE Weapon Passive
+const updateWeaponPassive = async (req, res) => {
+  try {
+    const { passiveId } = req.params;
+    const { passiveName, passiveDescription } = req.body;
+
+    const passive = await prisma.weaponPassive.update({
+      where: { id: parseInt(passiveId) },
+      data: {
+        passiveName,
+        passiveDescription,
+      },
+    });
+
+    res.status(200).json({
+      message: "Weapon passive updated successfully",
+      passive,
+    });
+  } catch (error) {
+    console.error("Update weapon passive error:", error);
+    res.status(500).json({ message: "Error updating weapon passive" });
+  }
+};
+
+// DELETE Weapon Passive
+const deleteWeaponPassive = async (req, res) => {
+  try {
+    const { passiveId } = req.params;
+
+    await prisma.weaponPassive.delete({
+      where: { id: parseInt(passiveId) },
+    });
+
+    res.status(200).json({
+      message: "Weapon passive deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete weapon passive error:", error);
+    res.status(500).json({ message: "Error deleting weapon passive" });
+  }
+};
+
+// GET Weapon Refinements
+const getWeaponRefinements = async (req, res) => {
+  try {
+    const { weaponId } = req.params;
+
+    const refinements = await prisma.weaponRefinement.findMany({
+      where: { weaponId: parseInt(weaponId) },
+      orderBy: { refinementLevel: "asc" },
+    });
+
+    res.status(200).json(refinements);
+  } catch (error) {
+    console.error("Get weapon refinements error:", error);
+    res.status(500).json({ message: "Error fetching weapon refinements" });
+  }
+};
+
+// CREATE Weapon Refinement
+const createWeaponRefinement = async (req, res) => {
+  try {
+    const { weaponId } = req.params;
+    const { refinementLevel, refinementDescription } = req.body;
+
+    // Validate input
+    if (!refinementLevel || refinementLevel < 1 || refinementLevel > 5) {
+      return res.status(400).json({
+        message: "Refinement level is required and must be between 1 and 5",
+      });
+    }
+
+    // Check if refinement level already exists
+    const existingRefinement = await prisma.weaponRefinement.findFirst({
+      where: {
+        weaponId: parseInt(weaponId),
+        refinementLevel: parseInt(refinementLevel),
+      },
+    });
+
+    if (existingRefinement) {
+      return res.status(409).json({
+        message: `Refinement level ${refinementLevel} already exists for this weapon`,
+      });
+    }
+
+    const refinement = await prisma.weaponRefinement.create({
+      data: {
+        weaponId: parseInt(weaponId),
+        refinementLevel: parseInt(refinementLevel),
+        refinementDescription,
+      },
+    });
+
+    res.status(201).json({
+      message: "Weapon refinement added successfully",
+      refinement,
+    });
+  } catch (error) {
+    console.error("Create weapon refinement error:", error);
+    res.status(500).json({ message: "Error creating weapon refinement" });
+  }
+};
+
+// UPDATE Weapon Refinement
+const updateWeaponRefinement = async (req, res) => {
+  try {
+    const { refinementId } = req.params;
+    const { refinementLevel, refinementDescription } = req.body;
+
+    const updateData = { refinementDescription };
+
+    // Only update refinement level if provided
+    if (refinementLevel) {
+      if (refinementLevel < 1 || refinementLevel > 5) {
+        return res.status(400).json({
+          message: "Refinement level must be between 1 and 5",
+        });
+      }
+
+      const refinement = await prisma.weaponRefinement.findUnique({
+        where: { id: parseInt(refinementId) },
+      });
+
+      // Check if the new level already exists for another refinement
+      if (refinementLevel !== refinement.refinementLevel) {
+        const existingRefinement = await prisma.weaponRefinement.findFirst({
+          where: {
+            weaponId: refinement.weaponId,
+            refinementLevel: parseInt(refinementLevel),
+            id: { not: parseInt(refinementId) },
+          },
+        });
+
+        if (existingRefinement) {
+          return res.status(409).json({
+            message: `Refinement level ${refinementLevel} already exists for this weapon`,
+          });
+        }
+      }
+
+      updateData.refinementLevel = parseInt(refinementLevel);
+    }
+
+    const refinement = await prisma.weaponRefinement.update({
+      where: { id: parseInt(refinementId) },
+      data: updateData,
+    });
+
+    res.status(200).json({
+      message: "Weapon refinement updated successfully",
+      refinement,
+    });
+  } catch (error) {
+    console.error("Update weapon refinement error:", error);
+    res.status(500).json({ message: "Error updating weapon refinement" });
+  }
+};
+
+// DELETE Weapon Refinement
+const deleteWeaponRefinement = async (req, res) => {
+  try {
+    const { refinementId } = req.params;
+
+    await prisma.weaponRefinement.delete({
+      where: { id: parseInt(refinementId) },
+    });
+
+    res.status(200).json({
+      message: "Weapon refinement deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete weapon refinement error:", error);
+    res.status(500).json({ message: "Error deleting weapon refinement" });
+  }
+};
 
 module.exports = {
   getAllWeapons,
@@ -291,4 +512,14 @@ module.exports = {
   createWeapon,
   updateWeapon,
   deleteWeapon,
+  // Tambahkan fungsi untuk passive
+  getWeaponPassives,
+  createWeaponPassive,
+  updateWeaponPassive,
+  deleteWeaponPassive,
+  // Tambahkan fungsi untuk refinement
+  getWeaponRefinements,
+  createWeaponRefinement,
+  updateWeaponRefinement,
+  deleteWeaponRefinement,
 };

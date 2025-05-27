@@ -131,7 +131,7 @@ const RegionGeneralInfo = ({
                 />
                 <label
                   htmlFor="regionIcon"
-                  className="btn btn-outline btn-sm flex items-center inline-block"
+                  className="btn btn-outline btn-sm flex items-center"
                 >
                   <FiUpload className="mr-2" />
                   Choose Icon

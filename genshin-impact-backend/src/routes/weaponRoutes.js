@@ -27,4 +27,46 @@ router.put(
 
 router.delete("/:id", verifyToken, isAdmin, weaponController.deleteWeapon);
 
+// Weapon Passive routes
+router.get("/:weaponId/passives", weaponController.getWeaponPassives);
+router.post(
+  "/:weaponId/passives",
+  verifyToken,
+  isAdmin,
+  weaponController.createWeaponPassive
+);
+router.put(
+  "/passives/:passiveId",
+  verifyToken,
+  isAdmin,
+  weaponController.updateWeaponPassive
+);
+router.delete(
+  "/passives/:passiveId",
+  verifyToken,
+  isAdmin,
+  weaponController.deleteWeaponPassive
+);
+
+// Weapon Refinement routes
+router.get("/:weaponId/refinements", weaponController.getWeaponRefinements);
+router.post(
+  "/:weaponId/refinements",
+  verifyToken,
+  isAdmin,
+  weaponController.createWeaponRefinement
+);
+router.put(
+  "/refinements/:refinementId",
+  verifyToken,
+  isAdmin,
+  weaponController.updateWeaponRefinement
+);
+router.delete(
+  "/refinements/:refinementId",
+  verifyToken,
+  isAdmin,
+  weaponController.deleteWeaponRefinement
+);
+
 module.exports = router;
