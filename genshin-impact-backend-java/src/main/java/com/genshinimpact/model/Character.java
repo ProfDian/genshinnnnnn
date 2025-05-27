@@ -115,4 +115,5 @@ public class Character {
     @OneToMany(mappedBy = "character")
     @JsonManagedReference
     private List<CharacterStat> stats;
+
 }

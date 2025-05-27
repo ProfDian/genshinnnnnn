@@ -1,11 +1,12 @@
 package com.genshinimpact.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Query; // Tambahkan ini
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -49,4 +50,12 @@ public interface CharacterRepository extends JpaRepository<Character, Integer> {
      */
     @Query("SELECT c FROM Character c WHERE c.regionId = :regionId AND c.deletedAt IS NULL")
     List<Character> findActiveCharactersByRegionId(@Param("regionId") Integer regionId);
+    
+    /**
+     * Find a non-deleted character by ID
+     * 
+     * @param id The ID of the character
+     * @return The character if found and not deleted
+     */
+    Optional<Character> findByIdAndDeletedAtIsNull(int id);
 }
